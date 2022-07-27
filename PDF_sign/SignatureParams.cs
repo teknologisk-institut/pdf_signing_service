@@ -11,9 +11,8 @@ namespace PDF_sign
         public string pdfBase64 { get; set; }
         public string reason { get; set; }
         public string location { get; set; }
-        public string imageBase64 { get; set; }
-        public string locationCaption { get; set; }
-        public string reasonCaption { get; set; }
         public string contact { get; set; }
+        public string language { get; set; }
+        public string signatureCreator { get; set; }
     }
 }

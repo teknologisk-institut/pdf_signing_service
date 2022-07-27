@@ -12,13 +12,12 @@ namespace PDF_sign
 
             var output = signature.Sign(@"{
 
-'reason': 'reason',
-'location': 'location',
-'locationCaption': 'locationCaption',
-'reasonCaption': 'reasonCaption',
-'contact': 'contact',
-'pdfBase64': '" + Convert.ToBase64String(File.ReadAllBytes(@"c:\Users\osv\Documents\test.pdf")) + @"',
-'imageBase64': '" + Convert.ToBase64String(File.ReadAllBytes(@"c:\Users\osv\Documents\test.pdf")) + @"'
+'reason': 'reason ABC',
+'location': 'location LOC',
+'contact': 'contact DEF',
+'signatureCreator': 'signatureCreator HIJ',
+'language': 'en',
+'pdfBase64': '" + Convert.ToBase64String(File.ReadAllBytes(@"c:\Users\osv\Documents\test.pdf")) + @"'
 
 }");
 

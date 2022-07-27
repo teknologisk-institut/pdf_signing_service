@@ -6,6 +6,9 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using Newtonsoft.Json;
 using iText.Kernel.Geom;
+using System.Drawing;
+using System.Globalization;
+using System.Drawing.Text;
 
 namespace PDF_sign
 {
@@ -48,16 +51,33 @@ namespace PDF_sign
             appearance.SetReason(pars.reason);
             appearance.SetLocation(pars.location);
             appearance.SetContact(pars.contact);
-            appearance.SetLocationCaption(pars.locationCaption);
-            appearance.SetReasonCaption(pars.reasonCaption);
+            appearance.SetSignatureCreator(pars.signatureCreator);
             appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
             appearance.SetPageNumber(1);
-            appearance.SetPageRect(new Rectangle(36, 648, 200, 100));
 
-           // var n2 = appearance.GetLayer2();
-            
-            var image = Convert.FromBase64String(pars.imageBase64);
-            var imageData = ImageDataFactory.Create(image);
+            var width = 58f * 72f / 25.4f;
+            var height = 22.8f * 72f / 25.4f;
+            var left = 18f * 72f / 25.4f;
+            var top = 10f * 72f / 25.4f;
+            appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, top, width, height));
+
+            var imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.language + ".png");
+            var image = Image.FromFile(imagePath);
+            var graphics = Graphics.FromImage((Bitmap)image);
+            graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
+            var font = new Font("sans-serif", 30);
+
+            var date = GetDate(pars.language);
+            var brush = new SolidBrush(Color.FromArgb(48, 48, 48));
+            var sf = new StringFormat();
+            sf.LineAlignment = StringAlignment.Center;
+            sf.Alignment = StringAlignment.Center;
+            graphics.DrawString(date, font, brush, new PointF(447f, 250f), sf);
+
+            var imageStream2 = new MemoryStream();
+            image.Save(imageStream2, System.Drawing.Imaging.ImageFormat.Png);
+
+            var imageData = ImageDataFactory.Create(imageStream2.ToArray());
             appearance.SetSignatureGraphic(imageData);
 
             var appID = GetForegroundWindow();
@@ -78,8 +98,25 @@ namespace PDF_sign
             inputStream.Close();
             reader.Close();
             outputStream.Close();
+            graphics.Dispose();
+            font.Dispose();
 
             return Convert.ToBase64String(arr);
+        }
+
+        private string GetDate(string language)
+        {
+            var d = DateTime.Now;
+
+            switch (language)
+            {
+                case "da":
+                    return d.ToString("d. MMMM yyyy", CultureInfo.CreateSpecificCulture("da-DK"));
+                case "de":
+                    return d.ToString("d. MMMM yyyy", CultureInfo.CreateSpecificCulture("de-DE"));
+                default:
+                    return d.ToString("d MMMM yyyy", CultureInfo.CreateSpecificCulture("en-UK"));
+            }
         }
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true)]
