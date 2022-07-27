@@ -1,38 +1,60 @@
 ﻿
-using iText.Kernel.Pdf;
-using iText.Signatures;
-using PDF_sign;
-using System.Security.Cryptography.X509Certificates;
+using System.Net;
+using System.Net.Sockets;
 
-var store = new X509Store(StoreLocation.CurrentUser);
-store.Open(OpenFlags.ReadOnly);
-
-var certs = store.Certificates.Where((c) => c.SerialNumber == "00882C5415453EB15DA9E03C1760F7D7A9");
-
-var cert = certs.First();
-var pk = cert.GetRSAPrivateKey();
-
-var cp = new Org.BouncyCastle.X509.X509CertificateParser();
-var ocert = cp.ReadCertificate(cert.RawData);
-
-var reader = new PdfReader(@"c:\Users\osv\Documents\test.pdf");
-var writer = new FileStream(@"c:\Users\osv\Documents\testXXX.pdf", FileMode.Create);
-
-var props = new StampingProperties();
-
-var signer = new PdfSigner(reader, writer, props);
-
-var chain = new Org.BouncyCastle.X509.X509Certificate[] { ocert };
-
-var signature = new Signature(pk);
-
-Task.Run(() =>
+namespace PDF_sign
 {
-    Thread.Sleep(1000);
-    var sim = new WindowsInput.InputSimulator();
-    sim.Keyboard.TextEntry("!10docSign#1");
-    sim.Keyboard.KeyPress(WindowsInput.Native.VirtualKeyCode.RETURN);
-});
+    public class Program
+    {
+        public static void Main()
+        {
+            var signature = new Signature();
 
-signer.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
+            var output = signature.Sign(@"{
+
+'reason': 'reason',
+'location': 'location',
+'locationCaption': 'locationCaption',
+'reasonCaption': 'reasonCaption',
+'contact': 'contact',
+'pdfBase64': '" + Convert.ToBase64String(File.ReadAllBytes(@"c:\Users\osv\Documents\test.pdf")) + @"',
+'imageBase64': '" + Convert.ToBase64String(File.ReadAllBytes(@"c:\Users\osv\Documents\test.pdf")) + @"'
+
+}");
+
+            File.WriteAllBytes(@"c:\Users\osv\Documents\testYYY.pdf", Convert.FromBase64String(output));
+        }
+
+        public static void ListenTCP()
+        {
+            var signature = new Signature();
+
+            var server = new TcpListener(IPAddress.Any, 9999);
+
+            server.Start();
+
+            while (true)
+            {
+                var client = server.AcceptTcpClient();
+
+                var ns = client.GetStream();
+                var reader = new StreamReader(ns);
+
+                while (client.Connected)
+                {
+                    var line = reader.ReadLine();
+                    if (line == null) continue;
+
+                    var vals = line.Split("|");
+
+                    var data = reader.ReadToEnd();
+                }
+
+
+            };
+
+        }
+
+    }
+}
 
