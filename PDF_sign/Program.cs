@@ -8,6 +8,12 @@ namespace PDF_sign
     {
         public static void Main()
         {
+            ListenTCP();
+            //Test();
+        }
+
+        public static void Test()
+        {
             var signature = new Signature();
 
             var output = signature.Sign(@"{
@@ -32,28 +38,26 @@ namespace PDF_sign
 
             server.Start();
 
+            Console.WriteLine("Listening on port 9999");
+
             while (true)
             {
-                var client = server.AcceptTcpClient();
+                using var client = server.AcceptTcpClient();
 
-                var ns = client.GetStream();
-                var reader = new StreamReader(ns);
+                using var ns = client.GetStream();
+                using var reader = new StreamReader(ns);
+                using var writer = new StreamWriter(ns);
 
                 while (client.Connected)
                 {
                     var line = reader.ReadLine();
                     if (line == null) continue;
 
-                    var vals = line.Split("|");
-
-                    var data = reader.ReadToEnd();
+                    var data = signature.Sign(line);
+                    writer.WriteLine(data);
                 }
-
-
-            };
-
+            }
         }
-
     }
 }
 

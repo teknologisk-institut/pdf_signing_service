@@ -5,7 +5,6 @@ using iText.IO.Image;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using Newtonsoft.Json;
-using iText.Kernel.Geom;
 using System.Drawing;
 using System.Globalization;
 using System.Drawing.Text;
@@ -19,12 +18,12 @@ namespace PDF_sign
 
         public Signature()
         {
-            var store = new X509Store(StoreLocation.CurrentUser);
+            using var store = new X509Store(StoreLocation.CurrentUser);
             store.Open(OpenFlags.ReadOnly);
 
             var certs = store.Certificates.Where((c) => c.SerialNumber == "00882C5415453EB15DA9E03C1760F7D7A9");
 
-            var cert = certs.First();
+            using var cert = certs.First();
             var pk = cert.GetRSAPrivateKey();
             signature = new ExternalSignature(pk);
 
@@ -39,12 +38,12 @@ namespace PDF_sign
             var pars = JsonConvert.DeserializeObject<SignatureParams>(json);
 
             var pdf = Convert.FromBase64String(pars.pdfBase64);
-            var inputStream = new MemoryStream(pdf);
-            var reader = new PdfReader(inputStream);
+            using var inputStream = new MemoryStream(pdf);
+            using var reader = new PdfReader(inputStream);
 
             var props = new StampingProperties();
 
-            var outputStream = new MemoryStream();
+            using var outputStream = new MemoryStream();
             var signer = new PdfSigner(reader, outputStream, props);
 
             var appearance = signer.GetSignatureAppearance();
@@ -62,19 +61,19 @@ namespace PDF_sign
             appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, top, width, height));
 
             var imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.language + ".png");
-            var image = Image.FromFile(imagePath);
-            var graphics = Graphics.FromImage((Bitmap)image);
+            using var image = Image.FromFile(imagePath);
+            using var graphics = Graphics.FromImage((Bitmap)image);
             graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
-            var font = new Font("sans-serif", 30);
+            using var font = new Font("sans-serif", 30);
 
             var date = GetDate(pars.language);
-            var brush = new SolidBrush(Color.FromArgb(48, 48, 48));
-            var sf = new StringFormat();
+            using var brush = new SolidBrush(Color.FromArgb(48, 48, 48));
+            using var sf = new StringFormat();
             sf.LineAlignment = StringAlignment.Center;
             sf.Alignment = StringAlignment.Center;
             graphics.DrawString(date, font, brush, new PointF(447f, 250f), sf);
 
-            var imageStream2 = new MemoryStream();
+            using var imageStream2 = new MemoryStream();
             image.Save(imageStream2, System.Drawing.Imaging.ImageFormat.Png);
 
             var imageData = ImageDataFactory.Create(imageStream2.ToArray());
@@ -95,28 +94,19 @@ namespace PDF_sign
 
             var arr = outputStream.ToArray();
 
-            inputStream.Close();
-            reader.Close();
-            outputStream.Close();
-            graphics.Dispose();
-            font.Dispose();
-
             return Convert.ToBase64String(arr);
         }
 
-        private string GetDate(string language)
+        private static string GetDate(string language)
         {
             var d = DateTime.Now;
 
-            switch (language)
+            return language switch
             {
-                case "da":
-                    return d.ToString("d. MMMM yyyy", CultureInfo.CreateSpecificCulture("da-DK"));
-                case "de":
-                    return d.ToString("d. MMMM yyyy", CultureInfo.CreateSpecificCulture("de-DE"));
-                default:
-                    return d.ToString("d MMMM yyyy", CultureInfo.CreateSpecificCulture("en-UK"));
-            }
+                "da" => d.ToString("d. MMMM yyyy", CultureInfo.CreateSpecificCulture("da-DK")),
+                "de" => d.ToString("d. MMMM yyyy", CultureInfo.CreateSpecificCulture("de-DE")),
+                _ => d.ToString("d MMMM yyyy", CultureInfo.CreateSpecificCulture("en-UK")),
+            };
         }
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true)]
