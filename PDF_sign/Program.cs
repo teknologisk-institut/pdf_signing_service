@@ -1,6 +1,7 @@
 ﻿
 using System.Net;
 using System.Net.Sockets;
+using Websocket.Client;
 
 namespace PDF_sign
 {
@@ -8,12 +9,42 @@ namespace PDF_sign
     {
         public static void Main()
         {
-            ListenTCP();
+            //ListenTCP();
             //Test();
+            //InitWS();
+            ListenTCP();
         }
 
-        public static void Test()
+        static void InitWS()
         {
+            var exitEvent = new ManualResetEvent(false);
+
+            var url = new Uri("wss://run.yodadev.localdom.net/personal/osv/playground/pdf-sign/ws");
+
+            var client = new WebsocketClient(url, () =>
+            {
+                var cl = new System.Net.WebSockets.ClientWebSocket();
+                cl.Options.SetRequestHeader("Cookie", "auth_jwt_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VySUQiOiJPU1YifQ.I-SYu0HHUlelTWnhBQR6rYIBP5D83T_bJrx_ovofEV0");
+                return cl;
+            });
+
+            var signature = new Signature();
+
+            client.MessageReceived.Subscribe(msg =>
+            {
+                var data = signature.Sign(msg.Text);
+                client.SendInstant(data);
+            });
+
+            client.StartOrFail();
+
+            exitEvent.WaitOne();
+        }
+
+        static void Test()
+        {
+            var pdfPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "test.pdf");
+
             var signature = new Signature();
 
             var output = signature.Sign(@"{
@@ -23,39 +54,61 @@ namespace PDF_sign
 'contact': 'contact DEF',
 'signatureCreator': 'signatureCreator HIJ',
 'language': 'en',
-'pdfBase64': '" + Convert.ToBase64String(File.ReadAllBytes(@"c:\Users\osv\Documents\test.pdf")) + @"'
+'pdfBase64': '" + Convert.ToBase64String(File.ReadAllBytes(pdfPath)) + @"'
 
 }");
 
-            File.WriteAllBytes(@"c:\Users\osv\Documents\testYYY.pdf", Convert.FromBase64String(output));
+            File.WriteAllBytes(pdfPath.Replace("test.pdf", "test2.pdf"), Convert.FromBase64String(output));
         }
 
-        public static void ListenTCP()
+        static void ListenTCP()
         {
-            var signature = new Signature();
-
-            var server = new TcpListener(IPAddress.Any, 9999);
-
-            server.Start();
-
-            Console.WriteLine("Listening on port 9999");
-
-            while (true)
+            try
             {
-                using var client = server.AcceptTcpClient();
+                var signature = new Signature();
 
-                using var ns = client.GetStream();
-                using var reader = new StreamReader(ns);
-                using var writer = new StreamWriter(ns);
+                var server = new TcpListener(IPAddress.Any, 9999);
+                server.Start();
 
-                while (client.Connected)
+                Console.WriteLine("Listening on port 9999");
+
+                while (true)
                 {
-                    var line = reader.ReadLine();
-                    if (line == null) continue;
+                    using var client = server.AcceptTcpClient();
+                    if (client == null) continue;
 
-                    var data = signature.Sign(line);
-                    writer.WriteLine(data);
+                    if (client.Client.RemoteEndPoint == null)
+                    {
+                        client.Close();
+                        continue;
+                    }
+
+                    var ip = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString();
+
+                    if (ip != "127.0.0.1")
+                    {
+                        client.Close();
+                        continue;
+                    }
+
+                    using var ns = client.GetStream();
+                    using var reader = new StreamReader(ns);
+                    using var writer = new StreamWriter(ns) { AutoFlush = true };
+
+                    while (client.Connected)
+                    {
+                        var line = reader.ReadLine();
+                        if (line == null) continue;
+
+                        var data = signature.Sign(line);
+                        writer.Write(data);
+                        client.Close();
+                    }
                 }
+            }
+            catch
+            {
+                ListenTCP();
             }
         }
     }

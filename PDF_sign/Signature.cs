@@ -35,66 +35,84 @@ namespace PDF_sign
 
         public string Sign(string json)
         {
-            var pars = JsonConvert.DeserializeObject<SignatureParams>(json);
-
-            var pdf = Convert.FromBase64String(pars.pdfBase64);
-            using var inputStream = new MemoryStream(pdf);
-            using var reader = new PdfReader(inputStream);
-
-            var props = new StampingProperties();
-
-            using var outputStream = new MemoryStream();
-            var signer = new PdfSigner(reader, outputStream, props);
-
-            var appearance = signer.GetSignatureAppearance();
-            appearance.SetReason(pars.reason);
-            appearance.SetLocation(pars.location);
-            appearance.SetContact(pars.contact);
-            appearance.SetSignatureCreator(pars.signatureCreator);
-            appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
-            appearance.SetPageNumber(1);
-
-            var width = 58f * 72f / 25.4f;
-            var height = 22.8f * 72f / 25.4f;
-            var left = 18f * 72f / 25.4f;
-            var top = 10f * 72f / 25.4f;
-            appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, top, width, height));
-
-            var imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.language + ".png");
-            using var image = Image.FromFile(imagePath);
-            using var graphics = Graphics.FromImage((Bitmap)image);
-            graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
-            using var font = new Font("sans-serif", 30);
-
-            var date = GetDate(pars.language);
-            using var brush = new SolidBrush(Color.FromArgb(48, 48, 48));
-            using var sf = new StringFormat();
-            sf.LineAlignment = StringAlignment.Center;
-            sf.Alignment = StringAlignment.Center;
-            graphics.DrawString(date, font, brush, new PointF(447f, 250f), sf);
-
-            using var imageStream2 = new MemoryStream();
-            image.Save(imageStream2, System.Drawing.Imaging.ImageFormat.Png);
-
-            var imageData = ImageDataFactory.Create(imageStream2.ToArray());
-            appearance.SetSignatureGraphic(imageData);
-
-            var appID = GetForegroundWindow();
-
-            Task.Run(() =>
+            try
             {
-                while (GetForegroundWindow() == appID) Thread.Sleep(50);
+                var pars = JsonConvert.DeserializeObject<SignatureParams>(json);
 
-                var sim = new WindowsInput.InputSimulator();
-                sim.Keyboard.TextEntry("!10docSign#1");
-                sim.Keyboard.KeyPress(WindowsInput.Native.VirtualKeyCode.RETURN);
-            });
+                if (pars == null) throw new Exception("Wrong parameters: " + json);
 
-            signer.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
+                if (pars.language == null) pars.language = "en";
 
-            var arr = outputStream.ToArray();
+                if (pars.language != "en" && pars.language != "da" && pars.language != "de")
+                {
+                    throw new Exception("Unsupported language: " + pars.language);
+                }
 
-            return Convert.ToBase64String(arr);
+                if (pars.pdfBase64 == null) throw new Exception("Missing property: pdfBase64");
+
+                var pdf = Convert.FromBase64String(pars.pdfBase64);
+                using var inputStream = new MemoryStream(pdf);
+                using var reader = new PdfReader(inputStream);
+
+                var props = new StampingProperties();
+
+                using var outputStream = new MemoryStream();
+                var signer = new PdfSigner(reader, outputStream, props);
+
+                var appearance = signer.GetSignatureAppearance();
+                if (pars.reason != null) appearance.SetReason(pars.reason);
+                if (pars.location != null) appearance.SetLocation(pars.location);
+                if (pars.contact != null) appearance.SetContact(pars.contact);
+                appearance.SetSignatureCreator("iText®");
+                appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
+                appearance.SetPageNumber(1);
+
+                var width = 58f * 72f / 25.4f;
+                var height = 22.8f * 72f / 25.4f;
+                var left = 18f * 72f / 25.4f;
+                var top = 10f * 72f / 25.4f;
+                appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, top, width, height));
+
+                var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.language + ".png");
+                using var image = Image.FromFile(imagePath);
+                using var graphics = Graphics.FromImage((Bitmap)image);
+                graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
+                using var font = new Font("sans-serif", 30);
+
+                var date = GetDate(pars.language);
+                using var brush = new SolidBrush(Color.FromArgb(48, 48, 48));
+                using var sf = new StringFormat();
+                sf.LineAlignment = StringAlignment.Center;
+                sf.Alignment = StringAlignment.Center;
+                graphics.DrawString(date, font, brush, new PointF(447f, 250f), sf);
+
+                using var imageStream2 = new MemoryStream();
+                image.Save(imageStream2, System.Drawing.Imaging.ImageFormat.Png);
+
+                var imageData = ImageDataFactory.Create(imageStream2.ToArray());
+                appearance.SetSignatureGraphic(imageData);
+
+                var appID = GetForegroundWindow();
+
+                Task.Run(() =>
+                {
+                    while (GetForegroundWindow() == appID) Thread.Sleep(50);
+
+                    var sim = new WindowsInput.InputSimulator();
+                    sim.Keyboard.TextEntry("!10docSign#1");
+                    sim.Keyboard.KeyPress(WindowsInput.Native.VirtualKeyCode.RETURN);
+                });
+
+                signer.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
+
+                var arr = outputStream.ToArray();
+
+                return Convert.ToBase64String(arr);
+            }
+            catch (Exception ex)
+            {
+                return ex.Message;
+            }
         }
 
         private static string GetDate(string language)
