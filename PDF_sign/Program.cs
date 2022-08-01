@@ -10,9 +10,8 @@ namespace PDF_sign
         public static void Main()
         {
             //ListenTCP();
-            //Test();
+            Test();
             //InitWS();
-            ListenTCP();
         }
 
         static void InitWS()
@@ -53,6 +52,10 @@ namespace PDF_sign
 'location': 'location LOC',
 'contact': 'contact DEF',
 'signatureCreator': 'signatureCreator HIJ',
+'fileName': 'test.pdf',
+'employeeID': 'OSV',
+'leftMM': 151.5,
+'bottomMM': 267,
 'language': 'en',
 'pdfBase64': '" + Convert.ToBase64String(File.ReadAllBytes(pdfPath)) + @"'
 

@@ -67,11 +67,13 @@ namespace PDF_sign
                 appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
                 appearance.SetPageNumber(1);
 
-                var width = 58f * 72f / 25.4f;
-                var height = 22.8f * 72f / 25.4f;
-                var left = 18f * 72f / 25.4f;
-                var top = 10f * 72f / 25.4f;
-                appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, top, width, height));
+                var width = 58.5f * 72f / 25.4f;
+                var height = 23f * 72f / 25.4f;
+                var left0 = pars.leftMM != null ? (float)pars.leftMM : 18f;
+                var left = left0 * 72f / 25.4f;
+                var bottom0 = pars.bottomMM != null ? (float)pars.bottomMM : 10f;
+                var bottom = bottom0 * 72f / 25.4f;
+                appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, bottom, width, height));
 
                 var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.language + ".png");
                 using var image = Image.FromFile(imagePath);
@@ -103,7 +105,9 @@ namespace PDF_sign
                     sim.Keyboard.KeyPress(WindowsInput.Native.VirtualKeyCode.RETURN);
                 });
 
-                signer.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
+                var tsa = new TSAClientBouncyCastle("http://timestamp.digicert.com", "", "");
+
+                signer.SignDetached(signature, chain, null, null, tsa, 0, PdfSigner.CryptoStandard.CMS);
 
                 var arr = outputStream.ToArray();
 
