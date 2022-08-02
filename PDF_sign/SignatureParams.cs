@@ -1,22 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace PDF_sign
+﻿namespace PDF_sign
 {
     internal class SignatureParams
     {
-        public string? pdfBase64 { get; set; }
-        public string? reason { get; set; }
-        public string? location { get; set; }
-        public string? contact { get; set; }
-        public string? language { get; set; }
-        public string? employeeID { get; set; }
-        public string? fileName { get; set; }
-        public float? leftMM { get; set; }
-        public float? bottomMM { get; set; }
-
+        public string? PdfBase64 { get; set; }
+        public string? Reason { get; set; }
+        public string? Location { get; set; }
+        public string? Contact { get; set; }
+        public string? Language { get; set; }
+        public string? EmployeeID { get; set; }
+        public string? FileName { get; set; }
+        public float? LeftMM { get; set; }
+        public float? BottomMM { get; set; }
+        public string? AppName { get; set; }
+        public string? AppSecret{ get; set; }
     }
 }

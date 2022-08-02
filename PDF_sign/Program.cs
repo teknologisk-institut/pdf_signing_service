@@ -48,20 +48,25 @@ namespace PDF_sign
 
             var output = signature.Sign(@"{
 
+'appName': 'Test app',
+'appSecret': '427646690bb8fa2be1421e2e1292cb30b',
+'employeeID': 'OSV',
+'fileName': 'test.pdf',
+
 'reason': 'reason ABC',
 'location': 'location LOC',
 'contact': 'contact DEF',
-'signatureCreator': 'signatureCreator HIJ',
-'fileName': 'test.pdf',
-'employeeID': 'OSV',
+
 'leftMM': 151.5,
 'bottomMM': 267,
+
 'language': 'en',
 'pdfBase64': '" + Convert.ToBase64String(File.ReadAllBytes(pdfPath)) + @"'
 
 }");
 
-            File.WriteAllBytes(pdfPath.Replace("test.pdf", "test2.pdf"), Convert.FromBase64String(output));
+            if (output.Contains(' ')) Console.WriteLine(output);
+            else File.WriteAllBytes(pdfPath.Replace("test.pdf", "test2.pdf"), Convert.FromBase64String(output));
         }
 
         static void ListenTCP()
@@ -87,12 +92,6 @@ namespace PDF_sign
                     }
 
                     var ip = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString();
-
-                    if (ip != "127.0.0.1")
-                    {
-                        client.Close();
-                        continue;
-                    }
 
                     using var ns = client.GetStream();
                     using var reader = new StreamReader(ns);
