@@ -4,7 +4,7 @@
 
 namespace PDF_sign.Migrations
 {
-    public partial class InitialCreate : Migration
+    public partial class InitalCreate : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -31,7 +31,7 @@ namespace PDF_sign.Migrations
                     FileName = table.Column<string>(type: "TEXT", nullable: true),
                     EmployeeID = table.Column<string>(type: "TEXT", nullable: true),
                     Language = table.Column<string>(type: "TEXT", nullable: true),
-                    Reason = table.Column<string>(type: "TEXT", nullable: true),
+                    EmployeeFullName = table.Column<string>(type: "TEXT", nullable: true),
                     Location = table.Column<string>(type: "TEXT", nullable: true),
                     Contact = table.Column<string>(type: "TEXT", nullable: true),
                     LeftMM = table.Column<float>(type: "REAL", nullable: true),

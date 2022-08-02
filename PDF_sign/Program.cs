@@ -1,4 +1,6 @@
-﻿
+﻿// Add-Migration InitalCreate
+// Update-Database
+
 using System.Net;
 using System.Net.Sockets;
 using Websocket.Client;
@@ -51,9 +53,9 @@ namespace PDF_sign
 'appName': 'Test app',
 'appSecret': '427646690bb8fa2be1421e2e1292cb30b',
 'employeeID': 'OSV',
+'employeeFullName': 'Oldrich Svec',
 'fileName': 'test.pdf',
 
-'reason': 'reason ABC',
 'location': 'location LOC',
 'contact': 'contact DEF',
 
@@ -66,7 +68,7 @@ namespace PDF_sign
 }");
 
             if (output.Contains(' ')) Console.WriteLine(output);
-            else File.WriteAllBytes(pdfPath.Replace("test.pdf", "test2.pdf"), Convert.FromBase64String(output));
+            else File.WriteAllBytes(pdfPath.Replace("test.pdf", "test3.pdf"), Convert.FromBase64String(output));
         }
 
         static void ListenTCP()

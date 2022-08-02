@@ -66,6 +66,8 @@ namespace PDF_sign
 
                 if (pars.EmployeeID == null) throw new Exception("Missing property: employeeID");
 
+                if (pars.EmployeeFullName == null) throw new Exception("Missing property: employeeFullName");
+
                 var app = db.Auth.Find(pars.AppName);
                 if (app == null) throw new Exception("AppName not found: " + pars.AppName);
 
@@ -81,7 +83,7 @@ namespace PDF_sign
                 var signer = new PdfSigner(reader, outputStream, props);
 
                 var appearance = signer.GetSignatureAppearance();
-                if (pars.Reason != null) appearance.SetReason(pars.Reason);
+                appearance.SetReason(GetReason(pars.EmployeeFullName, pars.Language));
                 if (pars.Location != null) appearance.SetLocation(pars.Location);
                 if (pars.Contact != null) appearance.SetContact(pars.Contact);
                 appearance.SetSignatureCreator(pars.AppName + " (" + pars.EmployeeID + ")");
@@ -129,7 +131,13 @@ namespace PDF_sign
 
                 var tsa = new TSAClientBouncyCastle("http://timestamp.digicert.com", "", "");
 
-                signer.SignDetached(signature, chain, null, null, tsa, 0, PdfSigner.CryptoStandard.CMS);
+                //signer.SetCertificationLevel(PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
+
+                var ocspVerifier = new OCSPVerifier(null, null);
+                var ocspClient = new OcspClientBouncyCastle(ocspVerifier);
+                var crlClients = new List<ICrlClient>(new[] { new CrlClientOnline() });
+
+                signer.SignDetached(signature, chain, null, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
 
                 var arr = outputStream.ToArray();
 
@@ -139,13 +147,13 @@ namespace PDF_sign
                     FileHash = Convert.ToBase64String(sha.ComputeHash(arr)),
                     AppName = pars.AppName,
                     EmployeeID = pars.EmployeeID,
+                    EmployeeFullName = pars.EmployeeFullName,
                     FileName = pars.FileName,
                     Language = pars.Language,
                     LeftMM = pars.LeftMM,
                     BottomMM = pars.BottomMM,
                     Contact = pars.Contact,
                     Location = pars.Location,
-                    Reason = pars.Reason
                 });
 
                 db.SaveChanges();
@@ -167,6 +175,17 @@ namespace PDF_sign
                 "da" => d.ToString("d. MMMM yyyy", CultureInfo.CreateSpecificCulture("da-DK")),
                 "de" => d.ToString("d. MMMM yyyy", CultureInfo.CreateSpecificCulture("de-DE")),
                 _ => d.ToString("d MMMM yyyy", CultureInfo.CreateSpecificCulture("en-UK")),
+            };
+        }
+
+        private static string GetReason(string fullName, string language)
+        {
+
+            return language switch
+            {
+                "da" => "Godkendt af " + fullName + " og digitalt signeret af Teknologisk Institut",
+                "de" => "Genehmigt von " + fullName + " und digital unterzeichnet von Danish Technological Institute",
+                _ => "Approved by " + fullName + " and digitally signed by Danish Technological Institute",
             };
         }
 

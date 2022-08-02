@@ -11,8 +11,8 @@ using PDF_sign;
 namespace PDF_sign.Migrations
 {
     [DbContext(typeof(SqlContext))]
-    [Migration("20220802113912_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20220802123512_InitalCreate")]
+    partial class InitalCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -47,6 +47,9 @@ namespace PDF_sign.Migrations
                     b.Property<string>("Contact")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("EmployeeFullName")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EmployeeID")
                         .HasColumnType("TEXT");
 
@@ -63,9 +66,6 @@ namespace PDF_sign.Migrations
                         .HasColumnType("REAL");
 
                     b.Property<string>("Location")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Reason")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Date");
