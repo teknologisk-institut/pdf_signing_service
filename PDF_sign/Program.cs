@@ -53,15 +53,15 @@ namespace PDF_sign
                     using var client = server.AcceptTcpClient();
                     if (client == null) continue;
 
-                    using var ns = client.GetStream();
-                    ns.ReadTimeout = 10_000;
-
-                    using var reader = new StreamReader(ns);
-                    using var writer = new StreamWriter(ns) { AutoFlush = true };
-
-                    while (client.Connected)
+                    try
                     {
-                        try
+                        using var ns = client.GetStream();
+                        ns.ReadTimeout = 10_000;
+
+                        using var reader = new StreamReader(ns);
+                        using var writer = new StreamWriter(ns) { AutoFlush = true };
+
+                        while (client.Connected)
                         {
                             var line = reader.ReadLine();
                             if (line == null) continue;
@@ -70,10 +70,10 @@ namespace PDF_sign
                             writer.Write(data);
                             client.Close();
                         }
-                        catch
-                        {
-                            client.Close();
-                        }
+                    }
+                    catch
+                    {
+                        client.Close();
                     }
                 }
             }
