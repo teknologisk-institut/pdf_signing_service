@@ -14,13 +14,15 @@ namespace PDF_sign
 {
     public class Signature
     {
-        private ExternalSignature? signature;
-        private Org.BouncyCastle.X509.X509Certificate[]? chain;
+        private static ExternalSignature? signature;
+        private static Org.BouncyCastle.X509.X509Certificate[]? chain;
 
-        private readonly SqlContext db = new();
-        private readonly SHA256 sha = SHA256.Create();
+        private static readonly SqlContext db = new();
+        private static readonly SHA256 sha = SHA256.Create();
 
-        public void SetupSignature()
+        private static readonly bool debug = false;
+
+        public static void SetupSignature()
         {
             using var store = new X509Store(StoreLocation.CurrentUser);
             store.Open(OpenFlags.ReadOnly);
@@ -39,15 +41,15 @@ namespace PDF_sign
             chain = new Org.BouncyCastle.X509.X509Certificate[] { ocert };
         }
 
-        public string Sign(string json)
+        public static string Sign(string json)
         {
             try
             {
-                Console.WriteLine("Signing started");
+                if (debug) Console.WriteLine("Signing started");
 
                 if (signature == null || chain == null) SetupSignature();
 
-                Console.WriteLine("Certificate loaded");
+                if (debug) Console.WriteLine("Certificate loaded");
 
                 if (db.Auth == null) throw new Exception("Auth database not found");
 
@@ -80,7 +82,7 @@ namespace PDF_sign
 
                 if (pars.AppSecret != app.Password) throw new Exception("Invalid AppSecret: " + pars.AppSecret);
 
-                Console.WriteLine("JSON validation performed");
+                if (debug) Console.WriteLine("JSON validation performed");
 
                 var pdf = Convert.FromBase64String(pars.PdfBase64);
                 using var inputStream = new MemoryStream(pdf);
@@ -107,7 +109,7 @@ namespace PDF_sign
                 var bottom = bottom0 * 72f / 25.4f;
                 appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, bottom, width, height));
 
-                Console.WriteLine("Signature info created");
+                if (debug) Console.WriteLine("Signature info created");
 
                 var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.Language + ".png");
                 using var image = Image.FromFile(imagePath);
@@ -128,7 +130,7 @@ namespace PDF_sign
                 var imageData = ImageDataFactory.Create(imageStream2.ToArray());
                 appearance.SetSignatureGraphic(imageData);
 
-                Console.WriteLine("Stamp image loaded");
+                if (debug) Console.WriteLine("Stamp image loaded");
 
                 var appID = GetForegroundWindow();
 
@@ -152,7 +154,7 @@ namespace PDF_sign
 
                 signer.SignDetached(signature, chain, null, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
 
-                Console.WriteLine("File signed");
+                if (debug) Console.WriteLine("File signed");
 
                 var arr = outputStream.ToArray();
 
@@ -171,7 +173,7 @@ namespace PDF_sign
 
                 db.SaveChanges();
 
-                Console.WriteLine("File returned");
+                if (debug) Console.WriteLine("File returned");
 
                 return Convert.ToBase64String(arr);
             }

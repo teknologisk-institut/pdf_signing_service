@@ -18,9 +18,7 @@ namespace PDF_sign
         {
             var pdfPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "test.pdf");
 
-            var signature = new Signature();
-
-            var output = signature.Sign(@"{
+            var output = Signature.Sign(@"{
 
 'appName': 'Test app',
 'appSecret': '427646690bb8fa2be1421e2e1292cb30b',
@@ -39,47 +37,37 @@ namespace PDF_sign
 
         static void ListenTCP()
         {
-            try
+            var server = new TcpListener(IPAddress.Any, 9999);
+            server.Start();
+
+            Console.WriteLine("Listening on port 9999");
+
+            while (true)
             {
-                var signature = new Signature();
+                using var client = server.AcceptTcpClient();
 
-                var server = new TcpListener(IPAddress.Any, 9999);
-                server.Start();
-
-                Console.WriteLine("Listening on port 9999");
-
-                while (true)
+                try
                 {
-                    using var client = server.AcceptTcpClient();
-                    if (client == null) continue;
+                    client.ReceiveTimeout = 10_000;
+                    client.SendTimeout = 10_000;
 
-                    try
+                    using var ns = client.GetStream();
+                    using var reader = new StreamReader(ns);
+                    using var writer = new StreamWriter(ns) { AutoFlush = true };
+
+                    var line = reader.ReadLine();
+
+                    if (line != null)
                     {
-                        using var ns = client.GetStream();
-                        ns.ReadTimeout = 10_000;
-
-                        using var reader = new StreamReader(ns);
-                        using var writer = new StreamWriter(ns) { AutoFlush = true };
-
-                        while (client.Connected)
-                        {
-                            var line = reader.ReadLine();
-                            if (line == null) continue;
-
-                            var data = signature.Sign(line);
-                            writer.Write(data);
-                            client.Close();
-                        }
-                    }
-                    catch
-                    {
-                        client.Close();
+                        var data = Signature.Sign(line);
+                        writer.Write(data);
                     }
                 }
-            }
-            catch
-            {
-                ListenTCP();
+                catch { }
+                finally
+                {
+                    client.Close();
+                }
             }
         }
     }
