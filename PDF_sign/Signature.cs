@@ -14,12 +14,13 @@ namespace PDF_sign
 {
     public class Signature
     {
-        private readonly ExternalSignature signature;
-        private readonly Org.BouncyCastle.X509.X509Certificate[] chain;
+        private ExternalSignature? signature;
+        private Org.BouncyCastle.X509.X509Certificate[]? chain;
+
         private readonly SqlContext db = new();
         private readonly SHA256 sha = SHA256.Create();
 
-        public Signature()
+        public void SetupSignature()
         {
             using var store = new X509Store(StoreLocation.CurrentUser);
             store.Open(OpenFlags.ReadOnly);
@@ -42,6 +43,8 @@ namespace PDF_sign
         {
             try
             {
+                if (signature == null || chain == null) SetupSignature();
+
                 if (db.Auth == null) throw new Exception("Auth database not found");
 
                 var pass = db.Auth.Find("certificate");
@@ -84,8 +87,8 @@ namespace PDF_sign
 
                 var appearance = signer.GetSignatureAppearance();
                 appearance.SetReason(GetReason(pars.EmployeeFullName, pars.Language));
-                if (pars.Location != null) appearance.SetLocation(pars.Location);
-                if (pars.Contact != null) appearance.SetContact(pars.Contact);
+                appearance.SetLocation("Gregersensvej 1, 2630 Taastrup, Denmark");
+                appearance.SetContact("Phone: +4572202000, E-mail: info@teknologisk.dk");
                 appearance.SetSignatureCreator(pars.AppName + " (" + pars.EmployeeID + ")");
                 appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
                 appearance.SetPageNumber(1);
@@ -152,8 +155,6 @@ namespace PDF_sign
                     Language = pars.Language,
                     LeftMM = pars.LeftMM,
                     BottomMM = pars.BottomMM,
-                    Contact = pars.Contact,
-                    Location = pars.Location,
                 });
 
                 db.SaveChanges();
@@ -162,6 +163,8 @@ namespace PDF_sign
             }
             catch (Exception ex)
             {
+                signature = null;
+                chain = null;
                 return ex.Message;
             }
         }

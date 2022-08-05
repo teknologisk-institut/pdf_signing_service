@@ -32,8 +32,6 @@ namespace PDF_sign.Migrations
                     EmployeeID = table.Column<string>(type: "TEXT", nullable: true),
                     Language = table.Column<string>(type: "TEXT", nullable: true),
                     EmployeeFullName = table.Column<string>(type: "TEXT", nullable: true),
-                    Location = table.Column<string>(type: "TEXT", nullable: true),
-                    Contact = table.Column<string>(type: "TEXT", nullable: true),
                     LeftMM = table.Column<float>(type: "REAL", nullable: true),
                     BottomMM = table.Column<float>(type: "REAL", nullable: true)
                 },

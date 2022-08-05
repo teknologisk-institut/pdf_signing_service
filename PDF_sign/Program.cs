@@ -3,7 +3,6 @@
 
 using System.Net;
 using System.Net.Sockets;
-using Websocket.Client;
 
 namespace PDF_sign
 {
@@ -11,35 +10,8 @@ namespace PDF_sign
     {
         public static void Main()
         {
-            //ListenTCP();
-            Test();
-            //InitWS();
-        }
-
-        static void InitWS()
-        {
-            var exitEvent = new ManualResetEvent(false);
-
-            var url = new Uri("wss://run.yodadev.localdom.net/personal/osv/playground/pdf-sign/ws");
-
-            var client = new WebsocketClient(url, () =>
-            {
-                var cl = new System.Net.WebSockets.ClientWebSocket();
-                cl.Options.SetRequestHeader("Cookie", "auth_jwt_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VySUQiOiJPU1YifQ.I-SYu0HHUlelTWnhBQR6rYIBP5D83T_bJrx_ovofEV0");
-                return cl;
-            });
-
-            var signature = new Signature();
-
-            client.MessageReceived.Subscribe(msg =>
-            {
-                var data = signature.Sign(msg.Text);
-                client.SendInstant(data);
-            });
-
-            client.StartOrFail();
-
-            exitEvent.WaitOne();
+            //Test();
+            ListenTCP();
         }
 
         static void Test()
@@ -55,12 +27,6 @@ namespace PDF_sign
 'employeeID': 'OSV',
 'employeeFullName': 'Oldrich Svec',
 'fileName': 'test.pdf',
-
-'location': 'location LOC',
-'contact': 'contact DEF',
-
-'leftMM': 151.5,
-'bottomMM': 267,
 
 'language': 'en',
 'pdfBase64': '" + Convert.ToBase64String(File.ReadAllBytes(pdfPath)) + @"'

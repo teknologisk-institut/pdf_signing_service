@@ -3,8 +3,6 @@
     internal class SignatureParams
     {
         public string? PdfBase64 { get; set; }
-        public string? Location { get; set; }
-        public string? Contact { get; set; }
         public string? Language { get; set; }
         public string? EmployeeID { get; set; }
         public string? EmployeeFullName { get; set; }

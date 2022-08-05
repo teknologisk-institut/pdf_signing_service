@@ -42,9 +42,6 @@ namespace PDF_sign.Migrations
                     b.Property<float?>("BottomMM")
                         .HasColumnType("REAL");
 
-                    b.Property<string>("Contact")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("EmployeeFullName")
                         .HasColumnType("TEXT");
 
@@ -62,9 +59,6 @@ namespace PDF_sign.Migrations
 
                     b.Property<float?>("LeftMM")
                         .HasColumnType("REAL");
-
-                    b.Property<string>("Location")
-                        .HasColumnType("TEXT");
 
                     b.HasKey("Date");
 

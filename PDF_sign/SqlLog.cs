@@ -12,8 +12,6 @@ namespace PDF_sign
         public string? EmployeeID { get; set; }
         public string? Language { get; set; }
         public string? EmployeeFullName { get; set; }
-        public string? Location { get; set; }
-        public string? Contact { get; set; }
         public float? LeftMM { get; set; }
         public float? BottomMM { get; set; }
 
