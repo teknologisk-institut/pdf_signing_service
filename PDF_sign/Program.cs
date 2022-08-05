@@ -53,26 +53,27 @@ namespace PDF_sign
                     using var client = server.AcceptTcpClient();
                     if (client == null) continue;
 
-                    if (client.Client.RemoteEndPoint == null)
-                    {
-                        client.Close();
-                        continue;
-                    }
-
-                    var ip = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString();
-
                     using var ns = client.GetStream();
+                    ns.ReadTimeout = 10_000;
+
                     using var reader = new StreamReader(ns);
                     using var writer = new StreamWriter(ns) { AutoFlush = true };
 
                     while (client.Connected)
                     {
-                        var line = reader.ReadLine();
-                        if (line == null) continue;
+                        try
+                        {
+                            var line = reader.ReadLine();
+                            if (line == null) continue;
 
-                        var data = signature.Sign(line);
-                        writer.Write(data);
-                        client.Close();
+                            var data = signature.Sign(line);
+                            writer.Write(data);
+                            client.Close();
+                        }
+                        catch
+                        {
+                            client.Close();
+                        }
                     }
                 }
             }
