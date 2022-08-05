@@ -17,7 +17,6 @@ namespace PDF_sign
         private static ExternalSignature? signature;
         private static Org.BouncyCastle.X509.X509Certificate[]? chain;
 
-        private static readonly SqlContext db = new();
         private static readonly SHA256 sha = SHA256.Create();
 
         private static readonly bool debug = false;
@@ -45,6 +44,8 @@ namespace PDF_sign
         {
             try
             {
+                using var db = new SqlContext();
+
                 if (debug) Console.WriteLine("Signing started");
 
                 if (signature == null || chain == null) SetupSignature();
