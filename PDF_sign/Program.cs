@@ -37,6 +37,8 @@ namespace PDF_sign
 
         static void ListenTCP()
         {
+            StartPing();
+
             var server = new TcpListener(IPAddress.Any, 9999);
             server.Start();
 
@@ -69,6 +71,31 @@ namespace PDF_sign
                     client.Close();
                 }
             }
+        }
+
+        static void StartPing()
+        {
+            var pdfPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "test.pdf");
+
+            var pars = new SignatureParams
+            {
+                Language = "EN",
+                PdfBase64 = Convert.ToBase64String(File.ReadAllBytes(pdfPath))
+            };
+
+            var db = new SqlContext();
+            var password = db.Auth!.Find("certificate")!.Password!;
+            db.Dispose();
+
+            Task.Run(async () =>
+            {
+                var sign = Task.Run(() => Signature.PerformSigning(pars, password));
+                var timeout = Task.Delay(TimeSpan.FromSeconds(10));
+                var result = await Task.WhenAny(sign, timeout);
+
+                if (result == timeout) Environment.Exit(0);
+                else Thread.Sleep(3600_000);
+            });
         }
     }
 }
