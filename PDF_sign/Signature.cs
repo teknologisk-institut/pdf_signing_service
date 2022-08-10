@@ -2,7 +2,6 @@
 using iText.Kernel.Pdf;
 using iText.Signatures;
 using iText.IO.Image;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using Newtonsoft.Json;
 using System.Drawing;
@@ -47,8 +46,6 @@ namespace PDF_sign
                 using var db = new SqlContext();
 
                 if (debug) Console.WriteLine("Signing started");
-
-                if (signature == null || chain == null) SetupSignature();
 
                 if (debug) Console.WriteLine("Certificate loaded");
 
@@ -116,6 +113,8 @@ namespace PDF_sign
 
         internal static byte[] PerformSigning(SignatureParams pars, string password)
         {
+            if (signature == null || chain == null) SetupSignature();
+
             var pdf = Convert.FromBase64String(pars.PdfBase64!);
             using var inputStream = new MemoryStream(pdf);
             using var reader = new PdfReader(inputStream);
@@ -164,21 +163,6 @@ namespace PDF_sign
 
             if (debug) Console.WriteLine("Stamp image loaded");
 
-            var appID = GetForegroundWindow();
-
-            var taskController = new CancellationTokenSource();
-            var token = taskController.Token;
-
-            using var task = Task.Run(() =>
-            {
-                while (!token.IsCancellationRequested && GetForegroundWindow() == appID) Thread.Sleep(50);
-
-                var sim = new WindowsInput.InputSimulator();
-
-                sim.Keyboard.TextEntry(password);
-                sim.Keyboard.KeyPress(WindowsInput.Native.VirtualKeyCode.RETURN);
-            });
-
             var tsa = new TSAClientBouncyCastle("http://timestamp.digicert.com", "", "");
 
             var ocspVerifier = new OCSPVerifier(null, null);
@@ -186,8 +170,6 @@ namespace PDF_sign
             var crlClients = new List<ICrlClient>(new[] { new CrlClientOnline() });
 
             signer.SignDetached(signature, chain, null, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
-
-            taskController.Cancel();
 
             if (debug) Console.WriteLine("File signed");
 
@@ -218,8 +200,6 @@ namespace PDF_sign
             };
         }
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true)]
-        private static extern IntPtr GetForegroundWindow();
     }
 }
 

@@ -3,6 +3,7 @@
 
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 
 namespace PDF_sign
 {
@@ -10,7 +11,7 @@ namespace PDF_sign
     {
         public static void Main()
         {
-            //Test();
+            WarmUp();
             ListenTCP();
         }
 
@@ -37,8 +38,6 @@ namespace PDF_sign
 
         static void ListenTCP()
         {
-            StartPing();
-
             var server = new TcpListener(IPAddress.Any, 9999);
             server.Start();
 
@@ -73,7 +72,7 @@ namespace PDF_sign
             }
         }
 
-        static void StartPing()
+        static void WarmUp()
         {
             var pdfPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "test.pdf");
 
@@ -87,16 +86,30 @@ namespace PDF_sign
             var password = db.Auth!.Find("certificate")!.Password!;
             db.Dispose();
 
-            Task.Run(async () =>
-            {
-                var sign = Task.Run(() => Signature.PerformSigning(pars, password));
-                var timeout = Task.Delay(TimeSpan.FromSeconds(10));
-                var result = await Task.WhenAny(sign, timeout);
+            var appID = GetForegroundWindow();
 
-                if (result == timeout) Environment.Exit(0);
-                else Thread.Sleep(3600_000);
+            var taskController = new CancellationTokenSource();
+            var token = taskController.Token;
+
+            using var task = Task.Run(() =>
+            {
+                while (!token.IsCancellationRequested && GetForegroundWindow() == appID) Thread.Sleep(50);
+
+                var sim = new WindowsInput.InputSimulator();
+
+                sim.Keyboard.TextEntry(password);
+                sim.Keyboard.KeyPress(WindowsInput.Native.VirtualKeyCode.RETURN);
             });
+
+            var bytes = Signature.PerformSigning(pars, password);
+
+            taskController.Cancel();
+
+            Console.WriteLine("Warmed up: " + bytes.Length);
         }
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true)]
+        private static extern IntPtr GetForegroundWindow();
     }
 }
 
