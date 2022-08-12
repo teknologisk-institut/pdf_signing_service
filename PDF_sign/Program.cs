@@ -4,6 +4,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace PDF_sign
 {
@@ -11,7 +12,7 @@ namespace PDF_sign
     {
         public static void Main()
         {
-            WarmUp();
+            Task.Run(() => PastePassword());
             ListenTCP();
         }
 
@@ -72,44 +73,51 @@ namespace PDF_sign
             }
         }
 
-        static void WarmUp()
+        static void PastePassword()
         {
-            var pdfPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "test.pdf");
-
-            var pars = new SignatureParams
-            {
-                Language = "EN",
-                PdfBase64 = Convert.ToBase64String(File.ReadAllBytes(pdfPath))
-            };
-
             var db = new SqlContext();
             var password = db.Auth!.Find("certificate")!.Password!;
             db.Dispose();
 
-            var appID = GetForegroundWindow();
-
-            var taskController = new CancellationTokenSource();
-            var token = taskController.Token;
-
-            using var task = Task.Run(() =>
+            while (true)
             {
-                while (!token.IsCancellationRequested && GetForegroundWindow() == appID) Thread.Sleep(50);
+                var title = GetCaptionOfActiveWindow();
 
-                var sim = new WindowsInput.InputSimulator();
+                if (title == "Token Logon")
+                {
+                    Thread.Sleep(500);
 
-                sim.Keyboard.TextEntry(password);
-                sim.Keyboard.KeyPress(WindowsInput.Native.VirtualKeyCode.RETURN);
-            });
+                    var sim = new WindowsInput.InputSimulator();
 
-            var bytes = Signature.PerformSigning(pars, password);
+                    sim.Keyboard.TextEntry(password);
+                    sim.Keyboard.KeyPress(WindowsInput.Native.VirtualKeyCode.RETURN);
+                }
 
-            taskController.Cancel();
-
-            Console.WriteLine("Warmed up: " + bytes.Length);
+                Thread.Sleep(500);
+            }
         }
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true)]
-        private static extern IntPtr GetForegroundWindow();
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        static extern int GetWindowTextLength(IntPtr hWnd);
+
+        private static string GetCaptionOfActiveWindow()
+        {
+            var strTitle = string.Empty;
+            var handle = GetForegroundWindow();
+            var intLength = GetWindowTextLength(handle) + 1;
+            var stringBuilder = new StringBuilder(intLength);
+            if (GetWindowText(handle, stringBuilder, intLength) > 0)
+            {
+                strTitle = stringBuilder.ToString();
+            }
+            return strTitle;
+        }
     }
 }
 

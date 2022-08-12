@@ -82,7 +82,7 @@ namespace PDF_sign
 
                 if (debug) Console.WriteLine("JSON validation performed");
 
-                var arr = PerformSigning(pars, pass.Password);
+                var arr = PerformSigning(pars);
 
                 db.Add(new SqlLog
                 {
@@ -111,7 +111,7 @@ namespace PDF_sign
             }
         }
 
-        internal static byte[] PerformSigning(SignatureParams pars, string password)
+        internal static byte[] PerformSigning(SignatureParams pars)
         {
             if (signature == null || chain == null) SetupSignature();
 
