@@ -195,8 +195,8 @@ namespace PDF_sign
             return language switch
             {
                 "da" => "Godkendt af " + fullName + " og digitalt signeret af Teknologisk Institut",
-                "de" => "Genehmigt von " + fullName + " und digital unterzeichnet von Danish Technological Institute",
-                _ => "Approved by " + fullName + " and digitally signed by Danish Technological Institute",
+                "de" => "Genehmigt von " + fullName + " und digital signiert vom Dänischen Technologischen Institut",
+                _ => "Approved by " + fullName + " and digitally signed by the Danish Technological Institute",
             };
         }
 
