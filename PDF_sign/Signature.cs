@@ -86,7 +86,7 @@ namespace PDF_sign
 
                 db.Add(new SqlLog
                 {
-                    Date = DateTime.UtcNow.Ticks,
+                    Date = DateTime.UtcNow,
                     FileHash = Convert.ToBase64String(sha.ComputeHash(arr)),
                     AppName = pars.AppName,
                     EmployeeID = pars.EmployeeID,

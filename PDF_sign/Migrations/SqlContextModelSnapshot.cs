@@ -32,9 +32,8 @@ namespace PDF_sign.Migrations
 
             modelBuilder.Entity("PDF_sign.SqlLog", b =>
                 {
-                    b.Property<long?>("Date")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                    b.Property<DateTime?>("Date")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("AppName")
                         .HasColumnType("TEXT");

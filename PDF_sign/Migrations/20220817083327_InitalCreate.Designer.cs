@@ -11,7 +11,7 @@ using PDF_sign;
 namespace PDF_sign.Migrations
 {
     [DbContext(typeof(SqlContext))]
-    [Migration("20220804114947_InitalCreate")]
+    [Migration("20220817083327_InitalCreate")]
     partial class InitalCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -34,9 +34,8 @@ namespace PDF_sign.Migrations
 
             modelBuilder.Entity("PDF_sign.SqlLog", b =>
                 {
-                    b.Property<long?>("Date")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                    b.Property<DateTime?>("Date")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("AppName")
                         .HasColumnType("TEXT");

@@ -5,7 +5,7 @@ namespace PDF_sign
     internal class SqlLog
     {
         [Key]
-        public long? Date { get; set; }
+        public DateTime? Date { get; set; }
         public string? FileHash { get; set; }
         public string? AppName { get; set; }
         public string? FileName { get; set; }
