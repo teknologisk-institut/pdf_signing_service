@@ -129,39 +129,43 @@ namespace PDF_sign
             appearance.SetLocation("Gregersensvej 1, 2630 Taastrup, Denmark");
             appearance.SetContact("Phone: +4572202000, E-mail: info@teknologisk.dk");
             appearance.SetSignatureCreator(pars.AppName + " (" + pars.EmployeeID + ")");
-            appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
-            appearance.SetPageNumber(1);
 
-            var width = 58.5f * 72f / 25.4f;
-            var height = 23f * 72f / 25.4f;
-            var left0 = pars.LeftMM != null ? (float)pars.LeftMM : 18f;
-            var left = left0 * 72f / 25.4f;
-            var bottom0 = pars.BottomMM != null ? (float)pars.BottomMM : 10f;
-            var bottom = bottom0 * 72f / 25.4f;
-            appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, bottom, width, height));
+            if (pars.NoVisualSignature != true)
+            {
+                appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
+                appearance.SetPageNumber(1);
 
-            if (debug) Console.WriteLine("Signature info created");
+                var width = 58.5f * 72f / 25.4f;
+                var height = 23f * 72f / 25.4f;
+                var left0 = pars.LeftMM != null ? (float)pars.LeftMM : 18f;
+                var left = left0 * 72f / 25.4f;
+                var bottom0 = pars.BottomMM != null ? (float)pars.BottomMM : 10f;
+                var bottom = bottom0 * 72f / 25.4f;
+                appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, bottom, width, height));
 
-            var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.Language + ".png");
-            using var image = Image.FromFile(imagePath);
-            using var graphics = Graphics.FromImage((Bitmap)image);
-            graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
-            using var font = new Font("sans-serif", 30);
+                if (debug) Console.WriteLine("Signature info created");
 
-            var date = GetDate(pars.Language!);
-            using var brush = new SolidBrush(Color.FromArgb(48, 48, 48));
-            using var sf = new StringFormat();
-            sf.LineAlignment = StringAlignment.Center;
-            sf.Alignment = StringAlignment.Center;
-            graphics.DrawString(date, font, brush, new PointF(447f, 250f), sf);
+                var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.Language + ".png");
+                using var image = Image.FromFile(imagePath);
+                using var graphics = Graphics.FromImage((Bitmap)image);
+                graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
+                using var font = new Font("sans-serif", 30);
 
-            using var imageStream2 = new MemoryStream();
-            image.Save(imageStream2, System.Drawing.Imaging.ImageFormat.Png);
+                var date = GetDate(pars.Language!);
+                using var brush = new SolidBrush(Color.FromArgb(48, 48, 48));
+                using var sf = new StringFormat();
+                sf.LineAlignment = StringAlignment.Center;
+                sf.Alignment = StringAlignment.Center;
+                graphics.DrawString(date, font, brush, new PointF(447f, 250f), sf);
 
-            var imageData = ImageDataFactory.Create(imageStream2.ToArray());
-            appearance.SetSignatureGraphic(imageData);
+                using var imageStream2 = new MemoryStream();
+                image.Save(imageStream2, System.Drawing.Imaging.ImageFormat.Png);
 
-            if (debug) Console.WriteLine("Stamp image loaded");
+                var imageData = ImageDataFactory.Create(imageStream2.ToArray());
+                appearance.SetSignatureGraphic(imageData);
+
+                if (debug) Console.WriteLine("Stamp image loaded");
+            }
 
             var tsa = new TSAClientBouncyCastle("http://timestamp.digicert.com", "", "");
 
