@@ -130,43 +130,8 @@ namespace PDF_sign
             appearance.SetContact("Phone: +4572202000, E-mail: info@teknologisk.dk");
             appearance.SetSignatureCreator(pars.AppName + " (" + pars.EmployeeID + ")");
 
-            if (pars.NoVisualSignature != true)
-            {
-                appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
-                appearance.SetPageNumber(1);
-
-                var width = 58.5f * 72f / 25.4f;
-                var height = 23f * 72f / 25.4f;
-                var left0 = pars.LeftMM != null ? (float)pars.LeftMM : 18f;
-                var left = left0 * 72f / 25.4f;
-                var bottom0 = pars.BottomMM != null ? (float)pars.BottomMM : 10f;
-                var bottom = bottom0 * 72f / 25.4f;
-                appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, bottom, width, height));
-
-                if (debug) Console.WriteLine("Signature info created");
-
-                var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.Language + ".png");
-                using var image = Image.FromFile(imagePath);
-                using var graphics = Graphics.FromImage((Bitmap)image);
-                graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
-                using var font = new Font("sans-serif", 30);
-
-                var date = GetDate(pars.Language!);
-                using var brush = new SolidBrush(Color.FromArgb(48, 48, 48));
-                using var sf = new StringFormat();
-                sf.LineAlignment = StringAlignment.Center;
-                sf.Alignment = StringAlignment.Center;
-                graphics.DrawString(date, font, brush, new PointF(447f, 250f), sf);
-
-                using var imageStream2 = new MemoryStream();
-                image.Save(imageStream2, System.Drawing.Imaging.ImageFormat.Png);
-
-                var imageData = ImageDataFactory.Create(imageStream2.ToArray());
-                appearance.SetSignatureGraphic(imageData);
-
-                if (debug) Console.WriteLine("Stamp image loaded");
-            }
-
+            if (pars.NoVisualSignature != true) SetVisualSignature(appearance, pars);
+            
             var tsa = new TSAClientBouncyCastle("http://timestamp.digicert.com", "", "");
 
             var ocspVerifier = new OCSPVerifier(null, null);
@@ -179,6 +144,43 @@ namespace PDF_sign
 
             var arr = outputStream.ToArray();
             return arr;
+        }
+
+        private static void SetVisualSignature(PdfSignatureAppearance appearance, SignatureParams pars)
+        {
+            appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
+            appearance.SetPageNumber(1);
+
+            var width = 58.5f * 72f / 25.4f;
+            var height = 23f * 72f / 25.4f;
+            var left0 = pars.LeftMM != null ? (float)pars.LeftMM : 18f;
+            var left = left0 * 72f / 25.4f;
+            var bottom0 = pars.BottomMM != null ? (float)pars.BottomMM : 10f;
+            var bottom = bottom0 * 72f / 25.4f;
+            appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, bottom, width, height));
+
+            if (debug) Console.WriteLine("Signature info created");
+
+            var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.Language + ".png");
+            using var image = Image.FromFile(imagePath);
+            using var graphics = Graphics.FromImage((Bitmap)image);
+            graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
+            using var font = new Font("sans-serif", 30);
+
+            var date = GetDate(pars.Language!);
+            using var brush = new SolidBrush(Color.FromArgb(48, 48, 48));
+            using var sf = new StringFormat();
+            sf.LineAlignment = StringAlignment.Center;
+            sf.Alignment = StringAlignment.Center;
+            graphics.DrawString(date, font, brush, new PointF(447f, 250f), sf);
+
+            using var imageStream2 = new MemoryStream();
+            image.Save(imageStream2, System.Drawing.Imaging.ImageFormat.Png);
+
+            var imageData = ImageDataFactory.Create(imageStream2.ToArray());
+            appearance.SetSignatureGraphic(imageData);
+
+            if (debug) Console.WriteLine("Stamp image loaded");
         }
 
         private static string GetDate(string language)

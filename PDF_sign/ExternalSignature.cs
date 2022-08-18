@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 
 namespace PDF_sign
 {
+    // The usb device does not allow to export a private key. Therefore we must create
+    // an external signature class that will on demand use the usb device to sign data
     internal class ExternalSignature : IExternalSignature
     {
         readonly RSA Rsa;
