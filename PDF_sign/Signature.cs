@@ -93,8 +93,6 @@ namespace PDF_sign
                     EmployeeFullName = pars.EmployeeFullName,
                     FileName = pars.FileName,
                     Language = pars.Language,
-                    LeftMM = pars.LeftMM,
-                    BottomMM = pars.BottomMM,
                 });
 
                 db.SaveChanges();
@@ -125,13 +123,16 @@ namespace PDF_sign
             var signer = new PdfSigner(reader, outputStream, props);
 
             var appearance = signer.GetSignatureAppearance();
-            appearance.SetReason(GetReason(pars.EmployeeFullName!, pars.Language!));
+
+            var reason = pars.Reason != null ? (string)pars.Reason : GetReason(pars.EmployeeFullName!, pars.Language!);
+            appearance.SetReason(reason);
+
             appearance.SetLocation("Gregersensvej 1, 2630 Taastrup, Denmark");
             appearance.SetContact("Phone: +4572202000, E-mail: info@teknologisk.dk");
             appearance.SetSignatureCreator(pars.AppName + " (" + pars.EmployeeID + ")");
 
             if (pars.NoVisualSignature != true) SetVisualSignature(appearance, pars);
-            
+
             var tsa = new TSAClientBouncyCastle("http://timestamp.digicert.com", "", "");
 
             var ocspVerifier = new OCSPVerifier(null, null);
@@ -149,30 +150,30 @@ namespace PDF_sign
         private static void SetVisualSignature(PdfSignatureAppearance appearance, SignatureParams pars)
         {
             appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
-            appearance.SetPageNumber(1);
 
-            var width = 58.5f * 72f / 25.4f;
-            var height = 23f * 72f / 25.4f;
-            var left0 = pars.LeftMM != null ? (float)pars.LeftMM : 18f;
-            var left = left0 * 72f / 25.4f;
-            var bottom0 = pars.BottomMM != null ? (float)pars.BottomMM : 10f;
-            var bottom = bottom0 * 72f / 25.4f;
-            appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, bottom, width, height));
+            var pageNumber = pars.SignaturePageNumber != null ? (int)pars.SignaturePageNumber : 1;
+            appearance.SetPageNumber(pageNumber);
+
+            SetPageRect(pars, appearance);
 
             if (debug) Console.WriteLine("Signature info created");
 
-            var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.Language + ".png");
-            using var image = Image.FromFile(imagePath);
+            using var image = GetSignatureImage(pars);
             using var graphics = Graphics.FromImage((Bitmap)image);
             graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
-            using var font = new Font("sans-serif", 30);
+
+            var fontSize = pars.SignatureDateFontSize != null ? (float)pars.SignatureDateFontSize : 30;
+            using var font = new Font("sans-serif", fontSize);
 
             var date = GetDate(pars.Language!);
             using var brush = new SolidBrush(Color.FromArgb(48, 48, 48));
             using var sf = new StringFormat();
             sf.LineAlignment = StringAlignment.Center;
             sf.Alignment = StringAlignment.Center;
-            graphics.DrawString(date, font, brush, new PointF(447f, 250f), sf);
+
+            var pointX = pars.SignatureDatePositionX != null ? (float)pars.SignatureDatePositionX : 447f;
+            var pointY = pars.SignatureDatePositionY != null ? (float)pars.SignatureDatePositionY : 250f;
+            graphics.DrawString(date, font, brush, new PointF(pointX, pointY), sf);
 
             using var imageStream2 = new MemoryStream();
             image.Save(imageStream2, System.Drawing.Imaging.ImageFormat.Png);
@@ -181,6 +182,40 @@ namespace PDF_sign
             appearance.SetSignatureGraphic(imageData);
 
             if (debug) Console.WriteLine("Stamp image loaded");
+        }
+
+        private static void SetPageRect(SignatureParams pars, PdfSignatureAppearance appearance)
+        {
+            var scale = 72f / 25.4f;
+
+            var width0 = pars.SignatureWidthMM != null ? (float)pars.SignatureWidthMM : 58.5f;
+            var width = width0 * scale;
+
+            var height0 = pars.SignatureHeightMM != null ? (float)pars.SignatureHeightMM : 23f;
+            var height = height0 * scale;
+
+            var left0 = pars.SignatureLeftMM != null ? (float)pars.SignatureLeftMM : 18f;
+            var left = left0 * scale;
+
+            var bottom0 = pars.SignatureBottomMM != null ? (float)pars.SignatureBottomMM : 10f;
+            var bottom = bottom0 * scale;
+
+            appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, bottom, width, height));
+        }
+
+        private static Image GetSignatureImage(SignatureParams pars)
+        {
+            if (pars.SignatureImageBase64 != null)
+            {
+                var bytes = Convert.FromBase64String(pars.SignatureImageBase64);
+                using var stream = new MemoryStream(bytes);
+                return Image.FromStream(stream);
+            }
+            else
+            {
+                var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.Language + ".png");
+                return Image.FromFile(imagePath);
+            }
         }
 
         private static string GetDate(string language)
