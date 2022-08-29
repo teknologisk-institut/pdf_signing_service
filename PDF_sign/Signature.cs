@@ -8,6 +8,7 @@ using System.Drawing;
 using System.Globalization;
 using System.Drawing.Text;
 using System.Security.Cryptography;
+using Newtonsoft.Json.Linq;
 
 namespace PDF_sign
 {
@@ -99,13 +100,18 @@ namespace PDF_sign
 
                 if (debug) Console.WriteLine("File returned");
 
-                return Convert.ToBase64String(arr);
+                var ob = new JObject() { ["pdfBase64"] = Convert.ToBase64String(arr) };
+
+                return ob.ToString(Formatting.None);
             }
             catch (Exception ex)
             {
                 signature = null;
                 chain = null;
-                return ex.Message;
+
+                var ob = new JObject() { ["error"] = ex.Message };
+
+                return ob.ToString(Formatting.None);
             }
         }
 
