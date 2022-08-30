@@ -11,7 +11,7 @@
         public string? AppSecret { get; set; }
         public string? Reason { get; set; }
         public bool? NoVisualSignature { get; set; }
-        public int? SignaturePageNumber { get; set; }
+        public int? SignaturePageIndex { get; set; }
         public string? SignatureImageBase64 { get; set; }
         public int? SignatureDatePositionX { get; set; }
         public float? SignatureDatePositionY { get; set; }

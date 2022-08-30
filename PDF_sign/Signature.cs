@@ -137,7 +137,7 @@ namespace PDF_sign
             appearance.SetContact("Phone: +4572202000, E-mail: info@teknologisk.dk");
             appearance.SetSignatureCreator(pars.AppName + " (" + pars.EmployeeID + ")");
 
-            if (pars.NoVisualSignature != true) SetVisualSignature(appearance, pars);
+            if (pars.NoVisualSignature != true) SetVisualSignature(appearance, pars, signer);
 
             var tsa = new TSAClientBouncyCastle("http://timestamp.digicert.com", "", "");
 
@@ -153,12 +153,19 @@ namespace PDF_sign
             return arr;
         }
 
-        private static void SetVisualSignature(PdfSignatureAppearance appearance, SignatureParams pars)
+        private static void SetVisualSignature(PdfSignatureAppearance appearance, SignatureParams pars, PdfSigner signer)
         {
             appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
 
-            var pageNumber = pars.SignaturePageNumber != null ? (int)pars.SignaturePageNumber : 1;
-            appearance.SetPageNumber(pageNumber);
+            var pageIndex = pars.SignaturePageIndex != null ? (int)pars.SignaturePageIndex : 0;
+
+            if (pageIndex < 0)
+            {
+                var pageCount = signer.GetDocument().GetNumberOfPages();
+                pageIndex += pageCount;
+            }
+
+            appearance.SetPageNumber(pageIndex + 1);
 
             SetPageRect(pars, appearance);
 
