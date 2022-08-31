@@ -133,8 +133,12 @@ namespace PDF_sign
             var reason = pars.Reason != null ? (string)pars.Reason : GetReason(pars.EmployeeFullName!, pars.Language!);
             appearance.SetReason(reason);
 
-            appearance.SetLocation("Gregersensvej 1, 2630 Taastrup, Denmark");
-            appearance.SetContact("Phone: +4572202000, E-mail: info@teknologisk.dk");
+            var location = pars.Location != null ? (string)pars.Location : "Gregersensvej 1, 2630 Taastrup, Denmark";
+            appearance.SetLocation(location);
+
+            var contact = pars.Contact != null ? (string)pars.Contact : "Phone: +4572202000, E-mail: info@teknologisk.dk";
+            appearance.SetContact(contact);
+
             appearance.SetSignatureCreator(pars.AppName + " (" + pars.EmployeeID + ")");
 
             if (pars.NoVisualSignature != true) SetVisualSignature(appearance, pars, signer);

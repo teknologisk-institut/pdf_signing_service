@@ -10,6 +10,8 @@
         public string? AppName { get; set; }
         public string? AppSecret { get; set; }
         public string? Reason { get; set; }
+        public string? Location { get; set; }
+        public string? Contact { get; set; }
         public bool? NoVisualSignature { get; set; }
         public int? SignaturePageIndex { get; set; }
         public string? SignatureImageBase64 { get; set; }
