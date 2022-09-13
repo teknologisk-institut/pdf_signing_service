@@ -60,9 +60,9 @@ namespace PDF_sign
 
             while (true)
             {
-                var title = GetCaptionOfActiveWindow();
+                var windowFound = BringToFront("Token Logon");
 
-                if (title == "Token Logon")
+                if (windowFound)
                 {
                     Thread.Sleep(500);
 
@@ -76,27 +76,22 @@ namespace PDF_sign
             }
         }
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern IntPtr GetForegroundWindow();
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern int GetWindowTextLength(IntPtr hWnd);
-
-        private static string GetCaptionOfActiveWindow()
+        private static bool BringToFront(string title)
         {
-            var strTitle = string.Empty;
-            var handle = GetForegroundWindow();
-            var intLength = GetWindowTextLength(handle) + 1;
-            var stringBuilder = new StringBuilder(intLength);
-            if (GetWindowText(handle, stringBuilder, intLength) > 0)
-            {
-                strTitle = stringBuilder.ToString();
+            var handle = FindWindow(null, title);
+
+            if (handle == IntPtr.Zero) return false;
+            else {
+                SetForegroundWindow(handle);
+                return true;
             }
-            return strTitle;
         }
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        static extern IntPtr FindWindow(String? lpClassName, String lpWindowName);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        static extern bool SetForegroundWindow(IntPtr hWnd);
     }
 }
 
