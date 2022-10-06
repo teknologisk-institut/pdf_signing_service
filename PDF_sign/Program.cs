@@ -14,6 +14,12 @@ namespace PDF_sign
         {
             Task.Run(() => PastePassword());
             ListenTCP();
+
+            // minimize all windows
+            var lHwnd = FindWindow("Shell_TrayWnd", null);
+            const int WM_COMMAND = 0x111;
+            const int MIN_ALL = 419;
+            SendMessage(lHwnd, WM_COMMAND, (IntPtr)MIN_ALL, IntPtr.Zero);
         }
 
         static void ListenTCP()
@@ -88,10 +94,13 @@ namespace PDF_sign
         }
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern IntPtr FindWindow(String? lpClassName, String lpWindowName);
+        static extern IntPtr FindWindow(String? lpClassName, String? lpWindowName);
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        static extern IntPtr SendMessage(IntPtr hWnd, Int32 Msg, IntPtr wParam, IntPtr lParam);
     }
 }
 
