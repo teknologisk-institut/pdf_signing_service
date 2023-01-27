@@ -72,6 +72,8 @@ namespace PDF_sign
                     sim.Keyboard.KeyPress(WindowsInput.Native.VirtualKeyCode.RETURN);
 
                     Log("Logon window filled");
+
+                    Thread.Sleep(1000);
                 }
 
                 Thread.Sleep(500);
@@ -84,7 +86,7 @@ namespace PDF_sign
 
             if (handle == IntPtr.Zero) return false;
             else {
-                Log("Logon window found");
+                Log("Logon window found " + handle);
 
                 // minimize all windows
                 var lHwnd = FindWindow("Shell_TrayWnd", null);
