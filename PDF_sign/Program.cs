@@ -70,6 +70,8 @@ namespace PDF_sign
 
                     sim.Keyboard.TextEntry(password);
                     sim.Keyboard.KeyPress(WindowsInput.Native.VirtualKeyCode.RETURN);
+
+                    Log("Logon window filled");
                 }
 
                 Thread.Sleep(500);
@@ -82,6 +84,8 @@ namespace PDF_sign
 
             if (handle == IntPtr.Zero) return false;
             else {
+                Log("Logon window found");
+
                 // minimize all windows
                 var lHwnd = FindWindow("Shell_TrayWnd", null);
                 const int WM_COMMAND = 0x111;
@@ -92,6 +96,12 @@ namespace PDF_sign
 
                 return true;
             }
+        }
+
+        private static void Log(string text)
+        {
+            var line = DateTime.Now.ToUniversalTime() + " " + text + "\n";
+            File.AppendAllText("C:\\PDF_SIGN\\log.txt",  line);
         }
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
