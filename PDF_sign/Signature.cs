@@ -26,7 +26,7 @@ namespace PDF_sign
             using var store = new X509Store(StoreLocation.CurrentUser);
             store.Open(OpenFlags.ReadOnly);
 
-            var certs = store.Certificates.Where((c) => c.SerialNumber == "00882C5415453EB15DA9E03C1760F7D7A9");
+            var certs = store.Certificates.Where((c) => c.Issuer.Contains("Sectigo"));
 
             using var cert = certs.First();
             var pk = cert.GetRSAPrivateKey();
