@@ -154,7 +154,11 @@ namespace PDF_sign
 
             signer.SignDetached(signature, chain, crlClients, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
 
-            // ----------- ltv
+            if (pars.LTV != true)
+            {
+                if (debug) Console.WriteLine("File signed");
+                return outputStream.ToArray();
+            }
 
             props.UseAppendMode();
 
