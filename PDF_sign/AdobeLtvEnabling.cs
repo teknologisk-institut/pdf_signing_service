@@ -69,7 +69,7 @@ namespace pdfsign
             while (certificate != null)
             {
                 Console.WriteLine(certificate.SubjectDN);
-                X509Certificate issuer = getIssuerCertificate(certificate);
+                X509Certificate? issuer = getIssuerCertificate(certificate);
                 validationData.certs.Add(certificate.GetEncoded());
                 byte[] ocspResponse = ocspClient.GetEncoded(certificate, issuer, null);
                 if (ocspResponse != null)
