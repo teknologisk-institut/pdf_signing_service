@@ -253,7 +253,9 @@ namespace pdfsign
             BasicOcspResponse borRaw = BasicOcspResponse.GetInstance(Asn1Sequence.GetInstance(basicResponseBytes));
             BasicOcspResp bor = new BasicOcspResp(borRaw);
 
-            foreach (X509Certificate x509Certificate in bor.GetCerts())
+            var certs = bor.GetCerts().ToArray();
+
+            foreach (X509Certificate x509Certificate in certs)
             {
                 if (bor.Verify(x509Certificate.GetPublicKey()))
                     return x509Certificate;
