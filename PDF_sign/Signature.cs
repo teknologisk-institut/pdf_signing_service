@@ -9,8 +9,7 @@ using System.Globalization;
 using System.Drawing.Text;
 using System.Security.Cryptography;
 using Newtonsoft.Json.Linq;
-using iText.Kernel.XMP.Impl;
-using System.Xml.Linq;
+using pdfsign;
 
 namespace PDF_sign
 {
@@ -154,11 +153,7 @@ namespace PDF_sign
 
             signer.SignDetached(signature, chain, crlClients, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
 
-            if (pars.LTV != true)
-            {
-                if (debug) Console.WriteLine("File signed");
-                return outputStream.ToArray();
-            }
+            // ----------- LTV
 
             props.UseAppendMode();
 
@@ -167,28 +162,8 @@ namespace PDF_sign
             using var ltvOutputStream = new MemoryStream();
             using var document = new PdfDocument(ltvReader, new PdfWriter(ltvOutputStream), props);
 
-            var ltvVerification = new LtvVerification(document);
-
-            var signatureUtil = new SignatureUtil(document);
-            var names = signatureUtil.GetSignatureNames();
-            var sigName = names[names.Count - 1];
-            var pkcs7 = signatureUtil.ReadSignatureData(sigName);
-
-            if (pkcs7.IsTsp())
-            {
-                ltvVerification.AddVerification(sigName, ocspClient, crlClient, LtvVerification.CertificateOption.WHOLE_CHAIN,
-                        LtvVerification.Level.OCSP_CRL, LtvVerification.CertificateInclusion.YES);
-            }
-            else
-            {
-                foreach (String name in names)
-                {
-                    ltvVerification.AddVerification(name, ocspClient, crlClient, LtvVerification.CertificateOption.WHOLE_CHAIN,
-                            LtvVerification.Level.OCSP_CRL, LtvVerification.CertificateInclusion.YES);
-                }
-            }
-
-            ltvVerification.Merge();
+            var ltv = new AdobeLtvEnabling(document);
+            ltv.enable(ocspClient, crlClient);
 
             if (debug) Console.WriteLine("File signed");
 

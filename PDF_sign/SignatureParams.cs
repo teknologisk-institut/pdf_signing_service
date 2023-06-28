@@ -22,6 +22,5 @@
         public float? SignatureBottomMM { get; set; }
         public float? SignatureWidthMM { get; set; }
         public float? SignatureHeightMM { get; set; }
-        public bool? LTV { get; set; }
     }
 }
