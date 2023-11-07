@@ -224,7 +224,7 @@ namespace PDF_sign
 
             var h = is90 ? width : height;
             var w = is90 ? height : width;
-            var x = is90 ? size.GetWidth() - bottom : left;
+            var x = is90 ? size.GetWidth() - bottom - height : left;
             var y = is90 ? left : bottom;
 
             appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(x, y, w, h));
