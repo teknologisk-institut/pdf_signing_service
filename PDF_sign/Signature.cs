@@ -9,9 +9,6 @@ using System.Globalization;
 using System.Drawing.Text;
 using System.Security.Cryptography;
 using Newtonsoft.Json.Linq;
-using pdfsign;
-using iText.IO.Source;
-using System.Net.Sockets;
 
 namespace PDF_sign
 {
@@ -86,8 +83,7 @@ namespace PDF_sign
 
                 if (debug) Console.WriteLine("JSON validation performed");
 
-                var arr0 = PerformSigning(pars);
-                var arr = PerformLTV(arr0);
+                var arr = PerformSigning(pars);
 
                 db.Add(new SqlLog
                 {
@@ -158,30 +154,6 @@ namespace PDF_sign
             if (debug) Console.WriteLine("File signed");
 
             return outputStream.ToArray();
-        }
-
-        public static byte[] PerformLTV(byte[] inArr)
-        {
-            var props = new StampingProperties();
-            props.UseAppendMode();
-
-            using var inputStream = new MemoryStream(inArr);
-            using var reader = new PdfReader(inputStream);
-            using var outputStream = new MemoryStream();
-            using var document = new PdfDocument(reader, new PdfWriter(outputStream), props);
-
-            var ltv = new AdobeLtvEnabling(document);
-
-            var ocspVerifier = new OCSPVerifier(null, null);
-            var ocspClient = new OcspClientBouncyCastle(ocspVerifier);
-            var crlClient = new CrlClientOnline();
-
-            ltv.enable(ocspClient, crlClient);
-
-            if (debug) Console.WriteLine("File LTV'ed");
-
-            var arr = outputStream.ToArray();
-            return arr;
         }
 
         private static void SetVisualSignature(PdfSignatureAppearance appearance, SignatureParams pars, PdfSigner signer)
