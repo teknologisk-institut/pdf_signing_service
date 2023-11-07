@@ -198,7 +198,7 @@ namespace PDF_sign
 
             appearance.SetPageNumber(pageIndex + 1);
 
-            SetPageRect(pars, appearance);
+            SetPageRect(signer, pars, appearance);
 
             if (debug) Console.WriteLine("Signature info created");
 
@@ -228,8 +228,14 @@ namespace PDF_sign
             if (debug) Console.WriteLine("Stamp image loaded");
         }
 
-        private static void SetPageRect(SignatureParams pars, PdfSignatureAppearance appearance)
+        private static void SetPageRect(PdfSigner signer, SignatureParams pars, PdfSignatureAppearance appearance)
         {
+            var pageNr = appearance.GetPageNumber();
+            var page = signer.GetDocument().GetPage(pageNr);
+            var rot = page.GetRotation();
+            var is90 = rot == 90;
+            var size = page.GetPageSize();
+            
             var scale = 72f / 25.4f;
 
             var width0 = pars.SignatureWidthMM != null ? (float)pars.SignatureWidthMM : 58.5f;
@@ -244,7 +250,12 @@ namespace PDF_sign
             var bottom0 = pars.SignatureBottomMM != null ? (float)pars.SignatureBottomMM : 10f;
             var bottom = bottom0 * scale;
 
-            appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(left, bottom, width, height));
+            var h = is90 ? width : height;
+            var w = is90 ? height : width;
+            var x = is90 ? size.GetWidth() - bottom : left;
+            var y = is90 ? left : bottom;
+
+            appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(x, y, w, h));
         }
 
         private static Image GetSignatureImage(SignatureParams pars)
