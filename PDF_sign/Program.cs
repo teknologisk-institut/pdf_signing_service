@@ -15,6 +15,7 @@ namespace PDF_sign
             //var bytes = File.ReadAllBytes("c:\\Users\\osv\\Downloads\\2testik.pdf");
             //var bytes2 = Signature.PerformLTV(bytes);
             //File.WriteAllBytes("c:\\Users\\osv\\Downloads\\xxx.pdf", bytes2);
+
             Task.Run(() => PastePassword());
             ListenTCP();
         }

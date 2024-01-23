@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -22,13 +22,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="logos\stamp.da.png">
+    <None Update="logos\stamp.ti.da.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="logos\stamp.de.png">
+    <None Update="logos\stamp.ti.de.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="logos\stamp.en.png">
+    <None Update="logos\stamp.ti.en.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

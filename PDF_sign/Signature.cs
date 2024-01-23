@@ -9,13 +9,17 @@ using System.Globalization;
 using System.Drawing.Text;
 using System.Security.Cryptography;
 using Newtonsoft.Json.Linq;
+using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace PDF_sign
 {
     public class Signature
     {
-        private static ExternalSignature? signature;
-        private static Org.BouncyCastle.X509.X509Certificate[]? chain;
+        private static ExternalSignature? tiSignature;
+        private static Org.BouncyCastle.X509.X509Certificate[]? tiChain;
+
+        private static ExternalSignature? danSignature;
+        private static Org.BouncyCastle.X509.X509Certificate[]? danChain;
 
         private static readonly SHA256 sha = SHA256.Create();
 
@@ -28,16 +32,29 @@ namespace PDF_sign
 
             var certs = store.Certificates.Where((c) => c.Issuer.Contains("Sectigo"));
 
-            using var cert = certs.First();
-            var pk = cert.GetRSAPrivateKey();
-            if (pk == null) throw new Exception("Private key not found");
+            var tiCert = certs.First((c) => c.Subject.Contains("Teknologisk"));
 
-            signature = new ExternalSignature(pk);
+            var tiPK = tiCert.GetRSAPrivateKey();
+            if (tiPK == null) throw new Exception("DTI private key not found");
 
-            var cp = new Org.BouncyCastle.X509.X509CertificateParser();
-            var ocert = cp.ReadCertificate(cert.RawData);
+            tiSignature = new ExternalSignature(tiPK);
 
-            chain = new Org.BouncyCastle.X509.X509Certificate[] { ocert };
+            var tiCP = new Org.BouncyCastle.X509.X509CertificateParser();
+            var tiOcert = tiCP.ReadCertificate(tiCert.RawData);
+
+            tiChain = new Org.BouncyCastle.X509.X509Certificate[] { tiOcert };
+
+            var danCert = certs.First((c) => c.Subject.Contains("Dancert"));
+
+            var danPK = danCert.GetRSAPrivateKey();
+            if (danPK == null) throw new Exception("Dancert private key not found");
+
+            danSignature = new ExternalSignature(danPK);
+
+            var danCP = new Org.BouncyCastle.X509.X509CertificateParser();
+            var danOcert = danCP.ReadCertificate(danCert.RawData);
+
+            danChain = new Org.BouncyCastle.X509.X509Certificate[] { danOcert };
         }
 
         public static string Sign(string json)
@@ -106,8 +123,10 @@ namespace PDF_sign
             }
             catch (Exception ex)
             {
-                signature = null;
-                chain = null;
+                tiSignature = null;
+                tiChain = null;
+                danSignature = null;
+                danChain = null;
 
                 var ob = new JObject() { ["error"] = ex.Message };
 
@@ -117,7 +136,10 @@ namespace PDF_sign
 
         internal static byte[] PerformSigning(SignatureParams pars)
         {
-            if (signature == null || chain == null) SetupSignature();
+            if (tiSignature == null || tiChain == null || danSignature == null || danChain == null)
+            {
+                SetupSignature();
+            }
 
             var pdf = Convert.FromBase64String(pars.PdfBase64!);
             using var inputStream = new MemoryStream(pdf);
@@ -136,7 +158,12 @@ namespace PDF_sign
             var location = pars.Location != null ? (string)pars.Location : "Gregersensvej 1, 2630 Taastrup, Denmark";
             appearance.SetLocation(location);
 
-            var contact = pars.Contact != null ? (string)pars.Contact : "Phone: +4572202000, E-mail: info@teknologisk.dk";
+            var contact = pars.Contact != null ?
+                (string)pars.Contact :
+                pars.IsDancert == true ?
+                "Phone: +4572202160, E-mail: info@dancert.dk" :
+                "Phone: +4572202000, E-mail: info@teknologisk.dk";
+
             appearance.SetContact(contact);
 
             appearance.SetSignatureCreator(pars.AppName + " (" + pars.EmployeeID + ")");
@@ -149,7 +176,15 @@ namespace PDF_sign
             var ocspClient = new OcspClientBouncyCastle(ocspVerifier);
             var crlClients = new List<ICrlClient>(new[] { new CrlClientOnline() });
 
-            signer.SignDetached(signature, chain, crlClients, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
+            if (pars.IsDancert == true)
+            {
+                signer.SignDetached(danSignature, danChain, crlClients, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
+            }
+            else
+            {
+                signer.SignDetached(tiSignature, tiChain, crlClients, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
+            }
+
 
             if (debug) Console.WriteLine("File signed");
 
@@ -207,7 +242,7 @@ namespace PDF_sign
             var rot = page.GetRotation();
             var is90 = rot == 90;
             var size = page.GetPageSize();
-            
+
             var scale = 72f / 25.4f;
 
             var width0 = pars.SignatureWidthMM != null ? (float)pars.SignatureWidthMM : 58.5f;
@@ -240,7 +275,8 @@ namespace PDF_sign
             }
             else
             {
-                var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + pars.Language + ".png");
+                var dancert = pars.IsDancert == true ? "dancert." : "ti.";
+                var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + dancert + pars.Language + ".png");
                 return Image.FromFile(imagePath);
             }
         }
