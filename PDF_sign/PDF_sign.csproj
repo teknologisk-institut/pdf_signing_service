@@ -22,6 +22,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="logos\stamp.dancert.da.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="logos\stamp.dancert.de.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="logos\stamp.dancert.en.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="logos\stamp.ti.da.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
