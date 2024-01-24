@@ -152,7 +152,7 @@ namespace PDF_sign
 
             var appearance = signer.GetSignatureAppearance();
 
-            var reason = pars.Reason != null ? (string)pars.Reason : GetReason(pars.EmployeeFullName!, pars.Language!);
+            var reason = pars.Reason != null ? (string)pars.Reason : GetReason(pars.EmployeeFullName!, pars.Language!, pars.IsDancert);
             appearance.SetReason(reason);
 
             var location = pars.Location != null ? (string)pars.Location : "Gregersensvej 1, 2630 Taastrup, Denmark";
@@ -293,14 +293,14 @@ namespace PDF_sign
             };
         }
 
-        private static string GetReason(string fullName, string language)
+        private static string GetReason(string fullName, string language, bool? isDancert)
         {
 
             return language switch
             {
-                "da" => "Godkendt af " + fullName + " og digitalt signeret af Teknologisk Institut",
-                "de" => "Genehmigt von " + fullName + " und digital signiert vom Dänischen Technologischen Institut",
-                _ => "Approved by " + fullName + " and digitally signed by the Danish Technological Institute",
+                "da" => "Godkendt af " + fullName + " og digitalt signeret af " + (isDancert == true ? "Dancert" : "Teknologisk Institut"),
+                "de" => "Genehmigt von " + fullName + " und digital signiert vom " + (isDancert == true ? "Dancert" : "Dänischen Technologischen Institut"),
+                _ => "Approved by " + fullName + " and digitally signed by " + (isDancert == true ? "Dancert" : "the Danish Technological Institute"),
             };
         }
 
