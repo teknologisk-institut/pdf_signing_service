@@ -128,7 +128,7 @@ namespace PDF_sign
                 danSignature = null;
                 danChain = null;
 
-                var ob = new JObject() { ["error"] = ex.Message };
+                var ob = new JObject() { ["error"] = ex.ToString() };
 
                 return ob.ToString(Formatting.None);
             }
