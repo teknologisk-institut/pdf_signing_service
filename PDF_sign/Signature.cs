@@ -9,7 +9,6 @@ using System.Globalization;
 using System.Drawing.Text;
 using System.Security.Cryptography;
 using Newtonsoft.Json.Linq;
-using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace PDF_sign
 {
@@ -27,34 +26,9 @@ namespace PDF_sign
 
         public static void SetupSignature()
         {
-            using var store = new X509Store(StoreLocation.CurrentUser);
-            store.Open(OpenFlags.ReadOnly);
-
-            var certs = store.Certificates.Where((c) => c.Issuer.Contains("Sectigo"));
-
-            var tiCert = certs.First((c) => c.Subject.Contains("Teknologisk"));
-
-            var tiPK = tiCert.GetRSAPrivateKey();
-            if (tiPK == null) throw new Exception("DTI private key not found");
-
-            tiSignature = new ExternalSignature(tiPK);
-
-            var tiCP = new Org.BouncyCastle.X509.X509CertificateParser();
-            var tiOcert = tiCP.ReadCertificate(tiCert.RawData);
-
-            tiChain = new Org.BouncyCastle.X509.X509Certificate[] { tiOcert };
-
-            var danCert = certs.First((c) => c.Subject.Contains("Dancert"));
-
-            var danPK = danCert.GetRSAPrivateKey();
-            if (danPK == null) throw new Exception("Dancert private key not found");
-
-            danSignature = new ExternalSignature(danPK);
-
-            var danCP = new Org.BouncyCastle.X509.X509CertificateParser();
-            var danOcert = danCP.ReadCertificate(danCert.RawData);
-
-            danChain = new Org.BouncyCastle.X509.X509Certificate[] { danOcert };
+            SetupCertChains();
+            tiSignature = new ExternalSignature(0);
+            danSignature = new ExternalSignature(1);
         }
 
         public static string Sign(string json)
@@ -302,6 +276,32 @@ namespace PDF_sign
                 "de" => "Genehmigt von " + fullName + " und digital signiert vom " + (isDancert == true ? "Dancert" : "Dänischen Technologischen Institut"),
                 _ => "Approved by " + fullName + " and digitally signed by " + (isDancert == true ? "Dancert" : "the Danish Technological Institute"),
             };
+        }
+
+        private static void SetupCertChains()
+        {
+            var parser = new Org.BouncyCastle.X509.X509CertificateParser();
+
+            var intCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", "intermediate.cer");
+            var intCerData = File.ReadAllBytes(intCerFilePath);
+            var intCert = parser.ReadCertificate(intCerData);
+
+            var rootCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", "root.cer");
+            var rootCerData = File.ReadAllBytes(rootCerFilePath);
+            var rootCert = parser.ReadCertificate(rootCerData);
+
+            using var store = new X509Store(StoreLocation.CurrentUser);
+            store.Open(OpenFlags.ReadOnly);
+
+            var certs = store.Certificates.Where((c) => c.Issuer.Contains("Sectigo"));
+
+            var tiCert = certs.First((c) => c.Subject.Contains("Teknologisk"));
+            var tiOcert = parser.ReadCertificate(tiCert.RawData);
+            tiChain = new Org.BouncyCastle.X509.X509Certificate[] { tiOcert, intCert, rootCert };
+
+            var danCert = certs.First((c) => c.Subject.Contains("Dancert"));
+            var danOcert = parser.ReadCertificate(danCert.RawData);
+            danChain = new Org.BouncyCastle.X509.X509Certificate[] { danOcert, intCert, rootCert };
         }
 
     }

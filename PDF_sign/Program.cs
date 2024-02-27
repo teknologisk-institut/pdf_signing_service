@@ -1,6 +1,8 @@
 ﻿// Add-Migration InitalCreate
 // Update-Database
 
+using Net.Pkcs11Interop.Common;
+using Net.Pkcs11Interop.HighLevelAPI;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -16,16 +18,19 @@ namespace PDF_sign
             //var bytes2 = Signature.PerformLTV(bytes);
             //File.WriteAllBytes("c:\\Users\\osv\\Downloads\\xxx.pdf", bytes2);
 
-            Task.Run(() => PastePassword());
-            ListenTCP();
+            ListenTCP(9999);
+            //ListenTCP(9989);
+
+            //PrintTokens(0);
+            //PrintTokens(1);
         }
 
-        static void ListenTCP()
+        static void ListenTCP(int port)
         {
-            var server = new TcpListener(IPAddress.Any, 9999);
+            var server = new TcpListener(IPAddress.Any, port);
             server.Start();
 
-            Console.WriteLine("Listening on port 9999");
+            Console.WriteLine("Listening on port " + port);
 
             while (true)
             {
@@ -56,68 +61,43 @@ namespace PDF_sign
             }
         }
 
-        static void PastePassword()
+        static void PrintTokens(int slotID)
         {
-            var db = new SqlContext();
-            var password = db.Auth!.Find("certificate")!.Password!;
-            db.Dispose();
+            var factories = new Pkcs11InteropFactories();
 
-            while (true)
+            using var pkcs11Library = factories.Pkcs11LibraryFactory.LoadPkcs11Library(factories, @"c:\PDF_SIGN\eTPKCS11.dll", AppType.MultiThreaded);
+
+            var slot = pkcs11Library.GetSlotList(SlotsType.WithOrWithoutTokenPresent)[slotID];
+
+            var slotInfo = slot.GetSlotInfo();
+
+            Console.WriteLine("Slot");
+            Console.WriteLine("  Manufacturer:       " + slotInfo.ManufacturerId);
+            Console.WriteLine("  Description:        " + slotInfo.SlotDescription);
+            Console.WriteLine("  Token present:      " + slotInfo.SlotFlags.TokenPresent);
+
+            if (slotInfo.SlotFlags.TokenPresent)
             {
-                var windowFound = BringToFront("Token Logon");
+                // Show basic information about token present in the slot
+                Net.Pkcs11Interop.HighLevelAPI.ITokenInfo tokenInfo = slot.GetTokenInfo();
 
-                if (windowFound)
+                Console.WriteLine("Token");
+                Console.WriteLine("  Manufacturer:       " + tokenInfo.ManufacturerId);
+                Console.WriteLine("  Model:              " + tokenInfo.Model);
+                Console.WriteLine("  Serial number:      " + tokenInfo.SerialNumber);
+                Console.WriteLine("  Label:              " + tokenInfo.Label);
+
+                // Show list of mechanisms (algorithms) supported by the token
+                Console.WriteLine("Supported mechanisms: ");
+                foreach (CKM mechanism in slot.GetMechanismList())
                 {
-                    Thread.Sleep(500);
-
-                    var sim = new WindowsInput.InputSimulator();
-
-                    sim.Keyboard.TextEntry(password);
-                    sim.Keyboard.KeyPress(WindowsInput.Native.VirtualKeyCode.RETURN);
-
-                    Log("Logon window filled");
-
-                    Thread.Sleep(1000);
+                    Console.WriteLine("  " + mechanism);
                 }
 
-                Thread.Sleep(500);
             }
         }
-
-        private static bool BringToFront(string title)
-        {
-            var handle = FindWindow(null, title);
-
-            if (handle == IntPtr.Zero) return false;
-            else {
-                Log("Logon window found " + handle);
-
-                // minimize all windows
-                var lHwnd = FindWindow("Shell_TrayWnd", null);
-                const int WM_COMMAND = 0x111;
-                const int MIN_ALL = 419;
-                SendMessage(lHwnd, WM_COMMAND, (IntPtr)MIN_ALL, IntPtr.Zero);
-
-                SetForegroundWindow(handle);
-
-                return true;
-            }
-        }
-
-        private static void Log(string text)
-        {
-            var line = DateTime.Now.ToUniversalTime() + " " + text + "\n";
-            File.AppendAllText("C:\\PDF_SIGN\\log.txt",  line);
-        }
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern IntPtr FindWindow(String? lpClassName, String? lpWindowName);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern bool SetForegroundWindow(IntPtr hWnd);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern IntPtr SendMessage(IntPtr hWnd, Int32 Msg, IntPtr wParam, IntPtr lParam);
     }
+
+
 }
 
