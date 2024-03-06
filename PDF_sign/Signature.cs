@@ -123,6 +123,10 @@ namespace PDF_sign
 
                 var text = ob.ToString(Formatting.None);
 
+                Console.WriteLine(DateTime.Now);
+
+                Console.WriteLine(json);
+
                 Console.WriteLine(text);
 
                 return text;
