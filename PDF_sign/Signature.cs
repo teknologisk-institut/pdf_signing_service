@@ -14,24 +14,46 @@ namespace PDF_sign
 {
     public class Signature
     {
-        private static ExternalSignature? tiSignature;
-        private static Org.BouncyCastle.X509.X509Certificate[]? tiChain;
+        private readonly ExternalSignature tiSignature;
+        private readonly Org.BouncyCastle.X509.X509Certificate[] tiChain;
 
-        private static ExternalSignature? danSignature;
-        private static Org.BouncyCastle.X509.X509Certificate[]? danChain;
+        private readonly ExternalSignature danSignature;
+        private readonly Org.BouncyCastle.X509.X509Certificate[] danChain;
 
-        private static readonly SHA256 sha = SHA256.Create();
+        private readonly SHA256 sha = SHA256.Create();
 
-        private static readonly bool debug = false;
+        private readonly bool debug = false;
 
-        public static void SetupSignature()
+        public Signature()
         {
-            SetupCertChains();
+            var parser = new Org.BouncyCastle.X509.X509CertificateParser();
+
+            var intCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", "intermediate.cer");
+            var intCerData = File.ReadAllBytes(intCerFilePath);
+            var intCert = parser.ReadCertificate(intCerData);
+
+            var rootCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", "root.cer");
+            var rootCerData = File.ReadAllBytes(rootCerFilePath);
+            var rootCert = parser.ReadCertificate(rootCerData);
+
+            using var store = new X509Store(StoreLocation.CurrentUser);
+            store.Open(OpenFlags.ReadOnly);
+
+            var certs = store.Certificates.Where((c) => c.Issuer.Contains("Sectigo"));
+
+            var tiCert = certs.First((c) => c.Subject.Contains("Teknologisk"));
+            var tiOcert = parser.ReadCertificate(tiCert.RawData);
+            tiChain = new Org.BouncyCastle.X509.X509Certificate[] { tiOcert, intCert, rootCert };
+
+            var danCert = certs.First((c) => c.Subject.Contains("Dancert"));
+            var danOcert = parser.ReadCertificate(danCert.RawData);
+            danChain = new Org.BouncyCastle.X509.X509Certificate[] { danOcert, intCert, rootCert };
+
             tiSignature = new ExternalSignature(0);
             danSignature = new ExternalSignature(1);
         }
 
-        public static string Sign(string json)
+        public string Sign(string json)
         {
             try
             {
@@ -97,24 +119,14 @@ namespace PDF_sign
             }
             catch (Exception ex)
             {
-                tiSignature = null;
-                tiChain = null;
-                danSignature = null;
-                danChain = null;
-
                 var ob = new JObject() { ["error"] = ex.ToString() };
 
                 return ob.ToString(Formatting.None);
             }
         }
 
-        internal static byte[] PerformSigning(SignatureParams pars)
+        internal byte[] PerformSigning(SignatureParams pars)
         {
-            if (tiSignature == null || tiChain == null || danSignature == null || danChain == null)
-            {
-                SetupSignature();
-            }
-
             var pdf = Convert.FromBase64String(pars.PdfBase64!);
             using var inputStream = new MemoryStream(pdf);
             using var reader = new PdfReader(inputStream);
@@ -165,7 +177,7 @@ namespace PDF_sign
             return outputStream.ToArray();
         }
 
-        private static void SetVisualSignature(PdfSignatureAppearance appearance, SignatureParams pars, PdfSigner signer)
+        private void SetVisualSignature(PdfSignatureAppearance appearance, SignatureParams pars, PdfSigner signer)
         {
             appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
 
@@ -209,7 +221,7 @@ namespace PDF_sign
             if (debug) Console.WriteLine("Stamp image loaded");
         }
 
-        private static void SetPageRect(PdfSigner signer, SignatureParams pars, PdfSignatureAppearance appearance)
+        private void SetPageRect(PdfSigner signer, SignatureParams pars, PdfSignatureAppearance appearance)
         {
             var pageNr = appearance.GetPageNumber();
             var page = signer.GetDocument().GetPage(pageNr);
@@ -239,7 +251,7 @@ namespace PDF_sign
             appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(x, y, w, h));
         }
 
-        private static Image GetSignatureImage(SignatureParams pars)
+        private Image GetSignatureImage(SignatureParams pars)
         {
             if (pars.SignatureImageBase64 != null)
             {
@@ -255,7 +267,7 @@ namespace PDF_sign
             }
         }
 
-        private static string GetDate(string language)
+        private string GetDate(string language)
         {
             var d = DateTime.Now;
 
@@ -267,7 +279,7 @@ namespace PDF_sign
             };
         }
 
-        private static string GetReason(string fullName, string language, bool? isDancert)
+        private string GetReason(string fullName, string language, bool? isDancert)
         {
 
             return language switch
@@ -278,31 +290,7 @@ namespace PDF_sign
             };
         }
 
-        private static void SetupCertChains()
-        {
-            var parser = new Org.BouncyCastle.X509.X509CertificateParser();
-
-            var intCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", "intermediate.cer");
-            var intCerData = File.ReadAllBytes(intCerFilePath);
-            var intCert = parser.ReadCertificate(intCerData);
-
-            var rootCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", "root.cer");
-            var rootCerData = File.ReadAllBytes(rootCerFilePath);
-            var rootCert = parser.ReadCertificate(rootCerData);
-
-            using var store = new X509Store(StoreLocation.CurrentUser);
-            store.Open(OpenFlags.ReadOnly);
-
-            var certs = store.Certificates.Where((c) => c.Issuer.Contains("Sectigo"));
-
-            var tiCert = certs.First((c) => c.Subject.Contains("Teknologisk"));
-            var tiOcert = parser.ReadCertificate(tiCert.RawData);
-            tiChain = new Org.BouncyCastle.X509.X509Certificate[] { tiOcert, intCert, rootCert };
-
-            var danCert = certs.First((c) => c.Subject.Contains("Dancert"));
-            var danOcert = parser.ReadCertificate(danCert.RawData);
-            danChain = new Org.BouncyCastle.X509.X509Certificate[] { danOcert, intCert, rootCert };
-        }
+        
 
     }
 }

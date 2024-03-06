@@ -27,10 +27,12 @@ namespace PDF_sign
 
         static void ListenTCP(int port)
         {
+            var signature = new Signature();
+
             var server = new TcpListener(IPAddress.Any, port);
             server.Start();
 
-            Console.WriteLine("Listening on port " + port);
+            Console.WriteLine(DateTime.Now + " Listening on port " + port);
 
             while (true)
             {
@@ -49,7 +51,7 @@ namespace PDF_sign
 
                     if (line != null)
                     {
-                        var data = Signature.Sign(line);
+                        var data = signature.Sign(line);
                         writer.Write(data);
                     }
                 }
