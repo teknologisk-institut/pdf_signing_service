@@ -121,7 +121,11 @@ namespace PDF_sign
             {
                 var ob = new JObject() { ["error"] = ex.ToString() };
 
-                return ob.ToString(Formatting.None);
+                var text = ob.ToString(Formatting.None);
+
+                Console.WriteLine(text);
+
+                return text;
             }
         }
 
