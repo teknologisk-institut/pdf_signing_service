@@ -11,7 +11,7 @@ namespace PDF_sign
 
         public SqlContext()
         {
-            DbPath = Path.Join(AppDomain.CurrentDomain.BaseDirectory, "..", "sql.db");
+            DbPath = @"c:\PDF_SIGN\sql.db";// Path.Join(AppDomain.CurrentDomain.BaseDirectory, "..", "sql.db");
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
