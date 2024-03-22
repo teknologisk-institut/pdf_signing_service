@@ -1,4 +1,5 @@
 ﻿using iText.Signatures;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Net.Pkcs11Interop.Common;
 using Net.Pkcs11Interop.HighLevelAPI;
 
@@ -19,7 +20,7 @@ namespace PDF_sign
 
             var factories = new Pkcs11InteropFactories();
 
-            var pkcs11Library = factories.Pkcs11LibraryFactory.LoadPkcs11Library(factories, @"c:\PDF_SIGN\eTPKCS11.dll", AppType.MultiThreaded);
+            var pkcs11Library = factories.Pkcs11LibraryFactory.LoadPkcs11Library(factories, @"C:\Windows\System32\eTPKCS11.dll", AppType.MultiThreaded);
 
             var slot = pkcs11Library.GetSlotList(SlotsType.WithOrWithoutTokenPresent)[slotID];
 
@@ -37,8 +38,12 @@ namespace PDF_sign
             var key = session.FindAllObjects(objectAttributes).FirstOrDefault();
             if (key == null) throw new Exception("Certificate not found. Slot = " + slotID);
 
-            this.TISign = (message) => session.Sign(mechanism, key, message);
-
+            this.TISign = (message) =>
+            {
+                var response = session.Sign(mechanism, key, message);
+                VerifyResponse(message, response, session, mechanism);
+                return response;
+            };
         }
 
         public String GetHashAlgorithm()
@@ -51,9 +56,28 @@ namespace PDF_sign
             return "RSA";
         }
 
-        public byte[] Sign(byte[] message) 
+        public byte[] Sign(byte[] message)
         {
             return this.TISign(message);
+        }
+
+        private void VerifyResponse(byte[] message, byte[] response, ISession session, IMechanism mechanism)
+        {
+
+            var publicKeyObjectAttributes = new List<IObjectAttribute>
+            {
+                session.Factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, CKO.CKO_PUBLIC_KEY),
+            };
+
+            var publicKey = session.FindAllObjects(publicKeyObjectAttributes).FirstOrDefault();
+            if (publicKey == null) throw new Exception("Public key not found.");
+
+            session.Verify(mechanism, publicKey, message, response, out bool isValidSignature);
+
+            Console.WriteLine("verify " + isValidSignature);
+
+            if (isValidSignature == false) throw new Exception("VerifyResponse failed");
+
         }
     }
 }
