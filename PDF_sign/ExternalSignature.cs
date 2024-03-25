@@ -1,7 +1,12 @@
-﻿using iText.Signatures;
+﻿using iText.Bouncycastle.X509;
+using iText.Commons.Bouncycastle.Cert;
+using iText.Signatures;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Net.Pkcs11Interop.Common;
 using Net.Pkcs11Interop.HighLevelAPI;
+using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.Tls;
+using Org.BouncyCastle.X509;
 
 namespace PDF_sign
 {
@@ -12,6 +17,9 @@ namespace PDF_sign
     internal class ExternalSignature : IExternalSignature
     {
         private readonly ITISign TISign;
+
+        public IX509Certificate[] chain;
+        public string subjectDN;
 
         public ExternalSignature(int slotID)
         {
@@ -30,30 +38,32 @@ namespace PDF_sign
 
             var mechanism = session.Factories.MechanismFactory.Create(CKM.CKM_SHA256_RSA_PKCS);
 
-            var objectAttributes = new List<IObjectAttribute>
+            var pKeyAttributes = new List<IObjectAttribute>
             {
                 session.Factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, CKO.CKO_PRIVATE_KEY),
             };
 
-            var key = session.FindAllObjects(objectAttributes).FirstOrDefault();
-            if (key == null) throw new Exception("Certificate not found. Slot = " + slotID);
+            var key = session.FindAllObjects(pKeyAttributes).FirstOrDefault();
+            if (key == null) throw new Exception("Private key not found. Slot = " + slotID);
 
-            this.TISign = (message) =>
-            {
-                var response = session.Sign(mechanism, key, message);
-                VerifyResponse(message, response, session, mechanism);
-                return response;
-            };
+            SetChain(session);
+
+            this.TISign = (message) => session.Sign(mechanism, key, message);
         }
 
-        public String GetHashAlgorithm()
+        public String GetDigestAlgorithmName()
         {
             return DigestAlgorithms.SHA256;
         }
 
-        public String GetEncryptionAlgorithm()
+        public String GetSignatureAlgorithmName()
         {
             return "RSA";
+        }
+
+        public ISignatureMechanismParams? GetSignatureMechanismParameters()
+        {
+            return null;
         }
 
         public byte[] Sign(byte[] message)
@@ -61,23 +71,41 @@ namespace PDF_sign
             return this.TISign(message);
         }
 
-        private void VerifyResponse(byte[] message, byte[] response, ISession session, IMechanism mechanism)
+        private void SetChain(ISession session)
         {
-
-            var publicKeyObjectAttributes = new List<IObjectAttribute>
+            var certAttributes = new List<IObjectAttribute>
             {
-                session.Factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, CKO.CKO_PUBLIC_KEY),
+                session.Factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, CKO.CKO_CERTIFICATE),
+                session.Factories.ObjectAttributeFactory.Create(CKA.CKA_CERTIFICATE_TYPE, CKC.CKC_X_509),
             };
 
-            var publicKey = session.FindAllObjects(publicKeyObjectAttributes).FirstOrDefault();
-            if (publicKey == null) throw new Exception("Public key not found.");
+            var certs = session.FindAllObjects(certAttributes);
 
-            session.Verify(mechanism, publicKey, message, response, out bool isValidSignature);
+            var certAttributeKeys = new List<CKA>
+            {
+                CKA.CKA_VALUE,
+                CKA.CKA_LABEL
+            };
 
-            Console.WriteLine("verify " + isValidSignature);
+            var parser = new X509CertificateParser();
 
-            if (isValidSignature == false) throw new Exception("VerifyResponse failed");
+            List<X509Certificate> x509Certificates = [];
 
+            var certificateAttributes = session.GetAttributeValue(certs[0], certAttributeKeys);
+            var certStruct = X509CertificateStructure.GetInstance(certificateAttributes[0].GetValueAsByteArray());
+            x509Certificates.Add(new X509Certificate(certStruct));
+
+            this.subjectDN = x509Certificates[0].SubjectDN.ToString();
+
+            var intCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", "intermediate.cer");
+            var intCerData = File.ReadAllBytes(intCerFilePath);
+            x509Certificates.Add(parser.ReadCertificate(intCerData));
+
+            var rootCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", "root.cer");
+            var rootCerData = File.ReadAllBytes(rootCerFilePath);
+            x509Certificates.Add(parser.ReadCertificate(rootCerData));
+
+            this.chain = x509Certificates.Select(x => new X509CertificateBC(x)).ToArray();
         }
     }
 }

@@ -9,16 +9,15 @@ using System.Globalization;
 using System.Drawing.Text;
 using System.Security.Cryptography;
 using Newtonsoft.Json.Linq;
+using iText.Commons.Bouncycastle.Cert;
+using iText.Bouncycastle.X509;
+using System.Linq;
 
 namespace PDF_sign
 {
     public class Signature
     {
-        private readonly ExternalSignature tiSignature;
-        private readonly Org.BouncyCastle.X509.X509Certificate[] tiChain;
-
-        private readonly ExternalSignature danSignature;
-        private readonly Org.BouncyCastle.X509.X509Certificate[] danChain;
+        private readonly ExternalSignature[] signatures;
 
         private readonly SHA256 sha = SHA256.Create();
 
@@ -26,31 +25,7 @@ namespace PDF_sign
 
         public Signature()
         {
-            var parser = new Org.BouncyCastle.X509.X509CertificateParser();
-
-            var intCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", "intermediate.cer");
-            var intCerData = File.ReadAllBytes(intCerFilePath);
-            var intCert = parser.ReadCertificate(intCerData);
-
-            var rootCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", "root.cer");
-            var rootCerData = File.ReadAllBytes(rootCerFilePath);
-            var rootCert = parser.ReadCertificate(rootCerData);
-
-            using var store = new X509Store(StoreLocation.CurrentUser);
-            store.Open(OpenFlags.ReadOnly);
-
-            var certs = store.Certificates.Where((c) => c.Issuer.Contains("Sectigo"));
-
-            var tiCert = certs.First((c) => c.Subject.Contains("Teknologisk"));
-            var tiOcert = parser.ReadCertificate(tiCert.RawData);
-            tiChain = new Org.BouncyCastle.X509.X509Certificate[] { tiOcert, intCert, rootCert };
-
-            var danCert = certs.First((c) => c.Subject.Contains("Dancert"));
-            var danOcert = parser.ReadCertificate(danCert.RawData);
-            danChain = new Org.BouncyCastle.X509.X509Certificate[] { danOcert, intCert, rootCert };
-
-            tiSignature = new ExternalSignature(0);
-            danSignature = new ExternalSignature(1);
+            signatures = [new ExternalSignature(0), new ExternalSignature(1)];
         }
 
         public string Sign(string json)
@@ -170,15 +145,10 @@ namespace PDF_sign
             var ocspClient = new OcspClientBouncyCastle(ocspVerifier);
             var crlClients = new List<ICrlClient>(new[] { new CrlClientOnline() });
 
-            if (pars.IsDancert == true)
-            {
-                signer.SignDetached(danSignature, danChain, crlClients, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
-            }
-            else
-            {
-                signer.SignDetached(tiSignature, tiChain, crlClients, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
-            }
+            var kind = pars.IsDancert == true ? "dancert" : "teknologisk";
+            var sign = signatures.First(s => s.subjectDN.Contains(kind));
 
+            signer.SignDetached(sign, sign.chain, crlClients, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
 
             if (debug) Console.WriteLine("File signed");
 

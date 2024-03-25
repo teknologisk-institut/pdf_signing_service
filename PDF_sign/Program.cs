@@ -5,8 +5,6 @@ using Net.Pkcs11Interop.Common;
 using Net.Pkcs11Interop.HighLevelAPI;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
-using System.Text;
 
 namespace PDF_sign
 {
@@ -14,12 +12,8 @@ namespace PDF_sign
     {
         public static void Main()
         {
-            //var bytes = File.ReadAllBytes("c:\\Users\\osv\\Downloads\\2testik.pdf");
-            //var bytes2 = Signature.PerformLTV(bytes);
-            //File.WriteAllBytes("c:\\Users\\osv\\Downloads\\xxx.pdf", bytes2);
-
-            //ListenTCP(9999);
-            ListenTCP(9989);
+            ListenTCP(9999);
+            //ListenTCP(9989);
 
             //PrintTokens(0);
             //PrintTokens(1);
