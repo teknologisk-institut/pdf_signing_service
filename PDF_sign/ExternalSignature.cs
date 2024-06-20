@@ -91,11 +91,21 @@ namespace PDF_sign
 
             List<X509Certificate> x509Certificates = [];
 
-            var certificateAttributes = session.GetAttributeValue(certs[0], certAttributeKeys);
-            var certStruct = X509CertificateStructure.GetInstance(certificateAttributes[0].GetValueAsByteArray());
-            x509Certificates.Add(new X509Certificate(certStruct));
+            foreach (var cert in certs)
+            {
+                var certificateAttributes = session.GetAttributeValue(cert, certAttributeKeys);
+                var certStruct = X509CertificateStructure.GetInstance(certificateAttributes[0].GetValueAsByteArray());
+                var c = new X509Certificate(certStruct);
+
+                if (c.SubjectDN.ToString().Contains(".dk"))
+                {
+                    x509Certificates.Add(c);
+                    break;
+                }
+            }
 
             this.subjectDN = x509Certificates[0].SubjectDN.ToString();
+            Console.WriteLine(subjectDN);
 
             var dirName = GetDirName();
 
