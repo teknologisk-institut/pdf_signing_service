@@ -25,7 +25,7 @@ namespace PDF_sign
 
         public Signature()
         {
-            signatures = [new ExternalSignature(0), new ExternalSignature(1)];
+            signatures = [new ExternalSignature(0), new ExternalSignature(1), new ExternalSignature(2)];
         }
 
         public string Sign(string json)
@@ -46,6 +46,8 @@ namespace PDF_sign
                 var pars = JsonConvert.DeserializeObject<SignatureParams>(json);
 
                 if (pars == null) throw new Exception("Wrong parameters: " + json);
+
+                if (pars.IsDancert == true) pars.Org = "dce";
 
                 if (pars.Language == null) pars.Language = "en";
 
@@ -121,18 +123,13 @@ namespace PDF_sign
 
             var appearance = signer.GetSignatureAppearance();
 
-            var reason = pars.Reason != null ? (string)pars.Reason : GetReason(pars.EmployeeFullName!, pars.Language!, pars.IsDancert);
+            var reason = GetReason(pars);
             appearance.SetReason(reason);
 
-            var location = pars.Location != null ? (string)pars.Location : "Gregersensvej 1, 2630 Taastrup, Denmark";
+            var location = GetLocation(pars);
             appearance.SetLocation(location);
 
-            var contact = pars.Contact != null ?
-                (string)pars.Contact :
-                pars.IsDancert == true ?
-                "Phone: +4572202160, E-mail: info@dancert.dk" :
-                "Phone: +4572202000, E-mail: info@teknologisk.dk";
-
+            var contact = GetContact(pars);
             appearance.SetContact(contact);
 
             appearance.SetSignatureCreator(pars.AppName + " (" + pars.EmployeeID + ")");
@@ -145,7 +142,7 @@ namespace PDF_sign
             var ocspClient = new OcspClientBouncyCastle(ocspVerifier);
             var crlClients = new List<ICrlClient>(new[] { new CrlClientOnline() });
 
-            var kind = pars.IsDancert == true ? "dancert" : "teknologisk";
+            var kind = GetSubjectKeyword(pars);
             var sign = signatures.First(s => s.subjectDN.Contains(kind));
 
             signer.SignDetached(sign, sign.chain, crlClients, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
@@ -153,6 +150,28 @@ namespace PDF_sign
             if (debug) Console.WriteLine("File signed");
 
             return outputStream.ToArray();
+        }
+
+        private string GetSubjectKeyword(SignatureParams pars)
+        {
+            if (pars.Org == "dfy") return "danfysik";
+            if (pars.Org == "dce") return "dancert";
+            return "teknologisk";
+        }
+
+        private string GetLocation(SignatureParams pars)
+        {
+            if (pars.Location != null) return pars.Location;
+            if (pars.Org == "dfy") return "Gregersensvej 8, 2630 Taastrup, Denmark";
+            return "Gregersensvej 1, 2630 Taastrup, Denmark";
+        }
+
+        private string GetContact(SignatureParams pars)
+        {
+            if (pars.Contact != null) return pars.Contact;
+            if (pars.Org == "dce") return "Phone: +4572202160, E-mail: info@dancert.dk";
+            if (pars.Org == "dfy") return "Phone: +4572202400, E-mail: sales@danfysik.dk";
+            return "Phone: +4572202000, E-mail: info@teknologisk.dk";
         }
 
         private void SetVisualSignature(PdfSignatureAppearance appearance, SignatureParams pars, PdfSigner signer)
@@ -239,10 +258,17 @@ namespace PDF_sign
             }
             else
             {
-                var dancert = pars.IsDancert == true ? "dancert." : "ti.";
-                var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + dancert + pars.Language + ".png");
+                var ext = GetExt(pars);
+                var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logos", "stamp." + ext + pars.Language + ".png");
                 return Image.FromFile(imagePath);
             }
+        }
+
+        private string GetExt(SignatureParams pars)
+        {
+            if (pars.Org == "dce") return "dancert.";
+            if (pars.Org == "dfy") return "danfysik.";
+            return "ti.";
         }
 
         private string GetDate(string language)
@@ -257,18 +283,32 @@ namespace PDF_sign
             };
         }
 
-        private string GetReason(string fullName, string language, bool? isDancert)
+        private string GetReason(SignatureParams pars)
         {
+            if (pars.Reason != null) return pars.Reason;
 
-            return language switch
+            return pars.Language switch
             {
-                "da" => "Godkendt af " + fullName + " og digitalt signeret af " + (isDancert == true ? "Dancert" : "Teknologisk Institut"),
-                "de" => "Genehmigt von " + fullName + " und digital signiert vom " + (isDancert == true ? "Dancert" : "Dänischen Technologischen Institut"),
-                _ => "Approved by " + fullName + " and digitally signed by " + (isDancert == true ? "Dancert" : "the Danish Technological Institute"),
+                "da" => "Godkendt af " + pars.EmployeeFullName + " og digitalt signeret af " + GetCompanyName(pars),
+                "de" => "Genehmigt von " + pars.EmployeeFullName + " und digital signiert vom " + GetCompanyName(pars),
+                _ => "Approved by " + pars.EmployeeFullName + " and digitally signed by " + GetCompanyName(pars),
             };
         }
 
-        
+        private string GetCompanyName(SignatureParams pars)
+        {
+            if (pars.Org == "dce") return "Dancert";
+            if (pars.Org == "dfy") return "Danfysik";
+
+            return pars.Language switch
+            {
+                "da" => "Teknologisk Institut",
+                "de" => "Dänischen Technologischen Institut",
+                _ => "the Danish Technological Institute",
+            };
+        }
+
+
 
     }
 }

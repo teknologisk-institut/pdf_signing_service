@@ -23,10 +23,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="certificates\intermediate.cer">
+    <None Update="certificates\entrust\intermediate.cer">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="certificates\root.cer">
+    <None Update="certificates\entrust\root.cer">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="certificates\sectigo\intermediate.cer">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="certificates\sectigo\root.cer">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="logos\stamp.dancert.da.png">
@@ -38,6 +44,15 @@
     <None Update="logos\stamp.dancert.en.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="logos\stamp.danfysik.da.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="logos\stamp.danfysik.de.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="logos\stamp.danfysik.en.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="logos\stamp.ti.da.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -47,6 +62,10 @@
     <None Update="logos\stamp.ti.en.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="certificates\entrust\" />
   </ItemGroup>
 
 </Project>

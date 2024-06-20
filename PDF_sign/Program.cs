@@ -12,8 +12,8 @@ namespace PDF_sign
     {
         public static void Main()
         {
-            ListenTCP(9999);
-            //ListenTCP(9989);
+            //ListenTCP(9999);
+            ListenTCP(9989);
 
             //PrintTokens(0);
             //PrintTokens(1);

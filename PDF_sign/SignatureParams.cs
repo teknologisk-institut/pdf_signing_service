@@ -23,5 +23,6 @@
         public float? SignatureWidthMM { get; set; }
         public float? SignatureHeightMM { get; set; }
         public bool? IsDancert { get; set; }
+        public string? Org { get; set; }
     }
 }

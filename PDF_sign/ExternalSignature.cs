@@ -97,15 +97,24 @@ namespace PDF_sign
 
             this.subjectDN = x509Certificates[0].SubjectDN.ToString();
 
-            var intCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", "intermediate.cer");
+            var dirName = GetDirName();
+
+            var intCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", dirName, "intermediate.cer");
             var intCerData = File.ReadAllBytes(intCerFilePath);
             x509Certificates.Add(parser.ReadCertificate(intCerData));
 
-            var rootCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", "root.cer");
+            var rootCerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certificates", dirName, "root.cer");
             var rootCerData = File.ReadAllBytes(rootCerFilePath);
             x509Certificates.Add(parser.ReadCertificate(rootCerData));
 
             this.chain = x509Certificates.Select(x => new X509CertificateBC(x)).ToArray();
+        }
+
+        private string GetDirName()
+        {
+            if (subjectDN.Contains("danfysik")) return "entrust";
+
+            return "sectigo";
         }
     }
 }
