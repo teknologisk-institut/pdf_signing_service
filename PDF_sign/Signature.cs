@@ -17,9 +17,7 @@ namespace PDF_sign
 {
     public class Signature
     {
-        //private readonly ExternalSignature[] signatures;
-        private readonly ExternalSignature?[] signatures = new ExternalSignature?[3];
-        private readonly string?[] signatureStartupErrors = new string?[3];
+        private readonly ExternalSignature[] signatures;
 
         private readonly SHA256 sha = SHA256.Create();
 
@@ -27,31 +25,7 @@ namespace PDF_sign
 
         public Signature()
         {
-            //signatures = [new ExternalSignature(0), new ExternalSignature(1), new ExternalSignature(2)];
-            // Denne linje er erstattet af koden nedenfor, som håndterer situationen, hvor signaturen ikke er tilgængelig, så servicen kan starte alligevel.
-            // Er der ikke nogen signatur tilgængelig, vil der blive smidt en exception, når der forsøges at signere et dokument. Og signaturen på signaturlisten bliver sat til null
-
-            for (var slotId = 0; slotId < signatures.Length; slotId++)
-            {
-                try
-                {
-                    signatures[slotId] = new ExternalSignature(slotId);
-
-                    Console.WriteLine(
-                        $"{DateTime.Now}: Signature in slot {slotId} initialized: " +
-                        signatures[slotId]!.subjectDN);
-                }
-                catch (Exception ex)
-                {
-                    // The service must still start when this USB token is missing
-                    signatures[slotId] = null;
-                    signatureStartupErrors[slotId] = ex.Message;
-
-                    Console.WriteLine(
-                        $"{DateTime.Now}: Signature in slot {slotId} is unavailable. " +
-                        $"Reason: {ex.Message}");
-                }
-            }
+            signatures = [new ExternalSignature(0), new ExternalSignature(1), new ExternalSignature(2)];
         }
 
         public string Sign(string json)
@@ -168,39 +142,10 @@ namespace PDF_sign
             var ocspClient = new OcspClientBouncyCastle(ocspVerifier);
             var crlClients = new List<ICrlClient>(new[] { new CrlClientOnline() });
 
-            /* Dette er erstattet af koden nedenfor, som håndterer situationen, hvor signaturen ikke er tilgængelig
             var kind = GetSubjectKeyword(pars);
             var sign = signatures.First(s => s.subjectDN.Contains(kind));
 
             signer.SignDetached(sign, sign.chain, crlClients, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
-            */
-
-            var kind = GetSubjectKeyword(pars);
-
-            var sign = signatures
-                .Where(s => s != null)
-                .FirstOrDefault(s => s!.subjectDN.Contains(kind));
-
-            if (sign == null)
-            {
-                var unavailableSlots = signatureStartupErrors
-                    .Select((error, slotId) => new { error, slotId })
-                    .Where(x => x.error != null)
-                    .Select(x => $"slot {x.slotId}: {x.error}");
-
-                throw new Exception(
-                    $"The requested signing certificate ({kind}) is currently unavailable. " +
-                    $"Unavailable signatures: {string.Join("; ", unavailableSlots)}");
-            }
-
-            signer.SignDetached(
-                sign,
-                sign.chain,
-                crlClients,
-                ocspClient,
-                tsa,
-                0,
-                PdfSigner.CryptoStandard.CMS);
 
             if (debug) Console.WriteLine("File signed");
 

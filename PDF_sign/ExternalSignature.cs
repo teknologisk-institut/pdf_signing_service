@@ -1,6 +1,7 @@
 ﻿using iText.Bouncycastle.X509;
 using iText.Commons.Bouncycastle.Cert;
 using iText.Signatures;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Net.Pkcs11Interop.Common;
 using Net.Pkcs11Interop.HighLevelAPI;
 using Org.BouncyCastle.Asn1.X509;
