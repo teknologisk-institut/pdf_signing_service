@@ -12,12 +12,13 @@ using Newtonsoft.Json.Linq;
 using iText.Commons.Bouncycastle.Cert;
 using iText.Bouncycastle.X509;
 using System.Linq;
+using Net.Pkcs11Interop.Common;
 
 namespace PDF_sign
 {
     public class Signature
     {
-        private readonly ExternalSignature[] signatures;
+        private readonly List<ExternalSignature> signatures = new List<ExternalSignature>();
 
         private readonly SHA256 sha = SHA256.Create();
 
@@ -25,7 +26,63 @@ namespace PDF_sign
 
         public Signature()
         {
-            signatures = [new ExternalSignature(0), new ExternalSignature(1), new ExternalSignature(2)];
+            RefreshTokens();
+        }
+
+        // Discover all USB tokens that are currently present. Tokens that are missing or
+        // fail to initialize are skipped, so the service still starts and keeps running.
+        private void RefreshTokens()
+        {
+            var fresh = new List<ExternalSignature>();
+            var scanOk = false;
+
+            try
+            {
+                var slots = ExternalSignature.Library.GetSlotList(SlotsType.WithTokenPresent);
+                scanOk = true;
+
+                foreach (var slot in slots)
+                {
+                    try
+                    {
+                        var serial = slot.GetTokenInfo().SerialNumber.Trim();
+
+                        // Keep the existing instance and its logged-in session when the token
+                        // is already initialized - re-login can disturb healthy tokens
+                        // (CKR_USER_ALREADY_LOGGED_IN) and wastes PIN verifications.
+                        var existing = signatures.FirstOrDefault(s => s.TokenSerial == serial && s.HasOpenSession);
+                        if (existing != null)
+                        {
+                            fresh.Add(existing);
+                            continue;
+                        }
+
+                        var sig = new ExternalSignature(slot);
+                        fresh.Add(sig);
+                        Console.WriteLine(DateTime.Now + " Token " + sig.TokenSerial + " initialized: " + sig.subjectDN);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(DateTime.Now + " Token on slot " + slot.SlotId + " unavailable: " + ex.Message);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(DateTime.Now + " Token scan failed: " + ex.Message);
+            }
+
+            // Keep the previously discovered certificates if the scan itself failed.
+            if (!scanOk) return;
+
+            // Dispose only instances that were not carried over (token gone or re-initialized).
+            var removed = signatures.Where(s => !fresh.Contains(s)).ToArray();
+            signatures.Clear();
+            signatures.AddRange(fresh);
+            foreach (var r in removed) r.Dispose();
+
+            if (signatures.Count == 0)
+                Console.WriteLine(DateTime.Now + " Warning: no usable tokens found!");
         }
 
         public string Sign(string json)
@@ -143,7 +200,19 @@ namespace PDF_sign
             var crlClients = new List<ICrlClient>(new[] { new CrlClientOnline() });
 
             var kind = GetSubjectKeyword(pars);
-            var sign = signatures.First(s => s.subjectDN.Contains(kind));
+
+            var sign = signatures.FirstOrDefault(s => s.subjectDN.Contains(kind, StringComparison.OrdinalIgnoreCase));
+
+            // The token may have been plugged in after the service started - rescan once.
+            if (sign == null)
+            {
+                RefreshTokens();
+                sign = signatures.FirstOrDefault(s => s.subjectDN.Contains(kind));
+            }
+
+            if (sign == null)
+                throw new Exception("The requested signing certificate (" + kind + ") is currently unavailable. Present certificates: " +
+                    string.Join("; ", signatures.Select(s => s.subjectDN)));
 
             signer.SignDetached(sign, sign.chain, crlClients, ocspClient, tsa, 0, PdfSigner.CryptoStandard.CMS);
 

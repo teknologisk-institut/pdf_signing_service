@@ -10,45 +10,64 @@ using Org.BouncyCastle.X509;
 
 namespace PDF_sign
 {
-    delegate byte[] ITISign(byte[] message);
+    internal class TokenUnavailableException : Exception
+    {
+        public TokenUnavailableException(string message) : base(message) { }
+    }
 
     // The usb device does not allow to export a private key. Therefore we must create
     // an external signature class that will on demand use the usb device to sign data
-    internal class ExternalSignature : IExternalSignature
+    internal class ExternalSignature : IExternalSignature, IDisposable
     {
-        private readonly ITISign TISign;
+        // The PKCS#11 library is loaded once per process and never unloaded. The module
+        // is not designed for repeated C_Initialize/C_Finalize cycles while sessions exist.
+        private static IPkcs11Library? pkcs11Library;
+        private static readonly object libraryLock = new object();
+
+        internal static IPkcs11Library Library
+        {
+            get
+            {
+                if (pkcs11Library != null) return pkcs11Library;
+                lock (libraryLock)
+                {
+                    pkcs11Library ??= new Pkcs11InteropFactories().Pkcs11LibraryFactory.LoadPkcs11Library(
+                        new Pkcs11InteropFactories(), @"C:\Windows\System32\eTPKCS11.dll", AppType.MultiThreaded);
+                    return pkcs11Library;
+                }
+            }
+        }
+
+        // Serial numbers of tokens whose PIN login failed. No further automatic PIN
+        // attempts are made for them - QSCD tokens lock permanently after 3 wrong PINs.
+        private static readonly HashSet<string> pinFailedSerials = new HashSet<string>();
+
+        public string TokenSerial { get; }
+
+        private ISession? session;
+        private IObjectHandle? key;
 
         public IX509Certificate[] chain;
         public string subjectDN;
 
-        public ExternalSignature(int slotID)
+        public ExternalSignature(ISlot slot)
         {
-            var db = new SqlContext();
-            var password = db.Auth!.Find("certificate")!.Password!;
+            this.TokenSerial = slot.GetTokenInfo().SerialNumber.Trim();
 
-            var factories = new Pkcs11InteropFactories();
+            if (pinFailedSerials.Contains(TokenSerial))
+                throw new Exception("PIN for token " + TokenSerial + " failed earlier. No new login attempt will be made until the service is restarted.");
 
-            var pkcs11Library = factories.Pkcs11LibraryFactory.LoadPkcs11Library(factories, @"C:\Windows\System32\eTPKCS11.dll", AppType.MultiThreaded);
-
-            var slot = pkcs11Library.GetSlotList(SlotsType.WithOrWithoutTokenPresent)[slotID];
-
-            var session = slot.OpenSession(SessionType.ReadOnly);
-
-            session.Login(CKU.CKU_USER, password);
-
-            var mechanism = session.Factories.MechanismFactory.Create(CKM.CKM_SHA256_RSA_PKCS);
-
-            var pKeyAttributes = new List<IObjectAttribute>
+            try
             {
-                session.Factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, CKO.CKO_PRIVATE_KEY),
-            };
+                (session, key) = OpenSession(slot);
 
-            var key = session.FindAllObjects(pKeyAttributes).FirstOrDefault();
-            if (key == null) throw new Exception("Private key not found. Slot = " + slotID);
-
-            SetChain(session);
-
-            this.TISign = (message) => session.Sign(mechanism, key, message);
+                SetChain(session);
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
         }
 
         public String GetDigestAlgorithmName()
@@ -66,9 +85,118 @@ namespace PDF_sign
             return null;
         }
 
+        internal bool HasOpenSession => session != null && key != null;
+
         public byte[] Sign(byte[] message)
         {
-            return this.TISign(message);
+            // The warm session may have been lost earlier (token unplugged and put back).
+            // Try to reconnect on this request instead of failing forever.
+            if (session == null || key == null)
+            {
+                var reconnectSlot = FindSlotBySerial();
+                if (reconnectSlot == null)
+                    throw new TokenUnavailableException("Token " + TokenSerial + " (" + subjectDN + ") is not present in any reader.");
+
+                (session, key) = OpenSession(reconnectSlot);
+            }
+
+            try
+            {
+                var mechanism = session.Factories.MechanismFactory.Create(CKM.CKM_SHA256_RSA_PKCS);
+                return session.Sign(mechanism, key, message);
+            }
+            catch (Exception ex) when (IsTokenGone(ex))
+            {
+                // The token disappeared and (hopefully) came back, e.g. after a USB glitch.
+                // Re-open the session on the same token (looked up by serial number, never
+                // by slot id - slot ids are reused when readers are re-enumerated) and
+                // retry the signature exactly once.
+                Console.WriteLine(DateTime.Now + " Session lost for " + subjectDN + " (" + ex.Message + "). Re-opening session and retrying once.");
+
+                Dispose();
+
+                var slot = FindSlotBySerial();
+                if (slot == null)
+                    throw new TokenUnavailableException("Token " + TokenSerial + " (" + subjectDN + ") is not present in any reader.");
+
+                (session, key) = OpenSession(slot);
+
+                var mechanism2 = session.Factories.MechanismFactory.Create(CKM.CKM_SHA256_RSA_PKCS);
+                return session.Sign(mechanism2, key, message);
+            }
+        }
+
+        public void Dispose()
+        {
+            try { session?.Dispose(); } catch { }
+            session = null;
+            key = null;
+        }
+
+        private (ISession session, IObjectHandle key) OpenSession(ISlot slot)
+        {
+            // Single guard for ALL login attempts (constructor + reconnect in Sign).
+            if (pinFailedSerials.Contains(TokenSerial))
+                throw new Exception("PIN for token " + TokenSerial + " failed earlier. No new login attempt will be made until the service is restarted.");
+
+            var db = new SqlContext();
+            var password = db.Auth!.Find("certificate")!.Password!;
+
+            var newSession = slot.OpenSession(SessionType.ReadOnly);
+
+            try
+            {
+                newSession.Login(CKU.CKU_USER, password);
+            }
+            catch (Exception ex)
+            {
+                try { newSession.Dispose(); } catch { }
+
+                if (IsPinError(ex))
+                {
+                    pinFailedSerials.Add(TokenSerial);
+                    throw new Exception("Login with PIN failed for token " + TokenSerial + ": " + ex.Message +
+                        ". No further login attempts will be made until the service is restarted.", ex);
+                }
+
+                throw;
+            }
+
+            var pKeyAttributes = new List<IObjectAttribute>
+            {
+                newSession.Factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, CKO.CKO_PRIVATE_KEY),
+            };
+
+            var newKey = newSession.FindAllObjects(pKeyAttributes).FirstOrDefault();
+            if (newKey == null)
+            {
+                newSession.Dispose();
+                throw new Exception("Private key not found. Token = " + TokenSerial);
+            }
+
+            return (newSession, newKey);
+        }
+
+        private ISlot? FindSlotBySerial()
+        {
+            return Library.GetSlotList(SlotsType.WithTokenPresent)
+                .FirstOrDefault(s => s.GetTokenInfo().SerialNumber.Trim() == TokenSerial);
+        }
+
+        private static bool IsPinError(Exception ex)
+        {
+            return ex.Message.Contains("CKR_PIN_INCORRECT")
+                || ex.Message.Contains("CKR_PIN_INVALID")
+                || ex.Message.Contains("CKR_PIN_EXPIRED")
+                || ex.Message.Contains("CKR_PIN_LOCKED");
+        }
+
+        private static bool IsTokenGone(Exception ex)
+        {
+            return ex is TokenUnavailableException
+                || ex.Message.Contains("CKR_TOKEN_NOT_PRESENT")
+                || ex.Message.Contains("CKR_DEVICE_ERROR")
+                || ex.Message.Contains("CKR_SESSION_HANDLE_INVALID");
         }
 
         private void SetChain(ISession session)
@@ -122,7 +250,7 @@ namespace PDF_sign
 
         private string GetDirName()
         {
-            if (subjectDN.Contains("danfysik")) return "entrust";
+            if (subjectDN.Contains("danfysik", StringComparison.OrdinalIgnoreCase)) return "entrust";
 
             return "sectigo";
         }
