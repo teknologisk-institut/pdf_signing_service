@@ -1,6 +1,7 @@
 ﻿
 using iText.Kernel.Pdf;
 using iText.Signatures;
+using iText.Forms.Form.Element;
 using iText.IO.Image;
 using System.Security.Cryptography.X509Certificates;
 using Newtonsoft.Json;
@@ -178,25 +179,26 @@ namespace PDF_sign
             using var outputStream = new MemoryStream();
             var signer = new PdfSigner(reader, outputStream, props);
 
-            var appearance = signer.GetSignatureAppearance();
+            var signerProperties = new SignerProperties();
 
             var reason = GetReason(pars);
-            appearance.SetReason(reason);
+            signerProperties.SetReason(reason);
 
             var location = GetLocation(pars);
-            appearance.SetLocation(location);
+            signerProperties.SetLocation(location);
 
             var contact = GetContact(pars);
-            appearance.SetContact(contact);
+            signerProperties.SetContact(contact);
 
-            appearance.SetSignatureCreator(pars.AppName + " (" + pars.EmployeeID + ")");
+            signerProperties.SetSignatureCreator(pars.AppName + " (" + pars.EmployeeID + ")");
 
-            if (pars.NoVisualSignature != true) SetVisualSignature(appearance, pars, signer);
+            if (pars.NoVisualSignature != true) SetVisualSignature(signerProperties, pars, signer);
+
+            signer.SetSignerProperties(signerProperties);
 
             var tsa = new TSAClientBouncyCastle("http://timestamp.digicert.com", "", "");
 
-            var ocspVerifier = new OCSPVerifier(null, null);
-            var ocspClient = new OcspClientBouncyCastle(ocspVerifier);
+            var ocspClient = new OcspClientBouncyCastle();
             var crlClients = new List<ICrlClient>(new[] { new CrlClientOnline() });
 
             var kind = GetSubjectKeyword(pars);
@@ -243,10 +245,8 @@ namespace PDF_sign
             return "Phone: +4572202000, E-mail: info@teknologisk.dk";
         }
 
-        private void SetVisualSignature(PdfSignatureAppearance appearance, SignatureParams pars, PdfSigner signer)
+        private void SetVisualSignature(SignerProperties signerProperties, SignatureParams pars, PdfSigner signer)
         {
-            appearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
-
             var pageIndex = pars.SignaturePageIndex != null ? (int)pars.SignaturePageIndex : 0;
 
             if (pageIndex < 0)
@@ -255,9 +255,10 @@ namespace PDF_sign
                 pageIndex += pageCount;
             }
 
-            appearance.SetPageNumber(pageIndex + 1);
+            var pageNumber = pageIndex + 1;
+            signerProperties.SetPageNumber(pageNumber);
 
-            SetPageRect(signer, pars, appearance);
+            SetPageRect(signer, pars, signerProperties, pageNumber);
 
             if (debug) Console.WriteLine("Signature info created");
 
@@ -282,15 +283,16 @@ namespace PDF_sign
             image.Save(imageStream2, System.Drawing.Imaging.ImageFormat.Png);
 
             var imageData = ImageDataFactory.Create(imageStream2.ToArray());
-            appearance.SetSignatureGraphic(imageData);
+            var appearance = new SignatureFieldAppearance(SignerProperties.IGNORED_ID);
+            appearance.SetContent(imageData);
+            signerProperties.SetSignatureAppearance(appearance);
 
             if (debug) Console.WriteLine("Stamp image loaded");
         }
 
-        private void SetPageRect(PdfSigner signer, SignatureParams pars, PdfSignatureAppearance appearance)
+        private void SetPageRect(PdfSigner signer, SignatureParams pars, SignerProperties signerProperties, int pageNumber)
         {
-            var pageNr = appearance.GetPageNumber();
-            var page = signer.GetDocument().GetPage(pageNr);
+            var page = signer.GetDocument().GetPage(pageNumber);
             var rot = page.GetRotation();
             var is90 = rot == 90;
             var size = page.GetPageSize();
@@ -314,7 +316,7 @@ namespace PDF_sign
             var x = is90 ? size.GetWidth() - bottom - height : left;
             var y = is90 ? left : bottom;
 
-            appearance.SetPageRect(new iText.Kernel.Geom.Rectangle(x, y, w, h));
+            signerProperties.SetPageRect(new iText.Kernel.Geom.Rectangle(x, y, w, h));
         }
 
         private Image GetSignatureImage(SignatureParams pars)
